@@ -1,0 +1,433 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Wed, 8 Dec 2021 16:49:37 -0800
+Subject: [PATCH] Property API
+
+
+diff --git a/src/main/java/net/minecraft/world/level/block/state/properties/Property.java b/src/main/java/net/minecraft/world/level/block/state/properties/Property.java
+index f923593bd336dd1a950ba61603d53edb3c9703eb..180700cdb19c0837e6dcb6b9e3e213340dc15063 100644
+--- a/src/main/java/net/minecraft/world/level/block/state/properties/Property.java
++++ b/src/main/java/net/minecraft/world/level/block/state/properties/Property.java
+@@ -32,10 +32,12 @@ public abstract class Property<T extends Comparable<T>> {
+ 
+     public abstract int getIdFor(final T value);
+     // Paper end - optimise state lookup
++    public static final com.google.common.collect.Multimap<String, Property<?>> PROPERTY_MULTIMAP = com.google.common.collect.Multimaps.newSetMultimap(new java.util.HashMap<>(), com.google.common.collect.Sets::newIdentityHashSet); // Paper - property API
+ 
+     protected Property(String name, Class<T> type) {
+         this.clazz = type;
+         this.name = name;
++        PROPERTY_MULTIMAP.put(this.name, this); // Paper - property API
+     }
+ 
+     public Property.Value<T> value(T value) {
+diff --git a/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java b/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java
+index edce55a0cebe245cd944fcc1df735df66c736e43..20915bdedcda5c8ec8696394b28a141348f36775 100644
+--- a/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java
+@@ -34,6 +34,7 @@ import org.bukkit.craftbukkit.CraftWorld;
+ import org.bukkit.craftbukkit.block.CraftBlock;
+ import org.bukkit.craftbukkit.block.CraftBlockSupport;
+ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
++import net.minecraft.world.level.block.state.properties.BlockStateProperties; // Paper
+ 
+ public class CraftBlockData implements BlockData {
+ 
+@@ -345,6 +346,7 @@ public class CraftBlockData implements BlockData {
+ 
+     //
+     private static final Map<Class<? extends Block>, Function<BlockState, CraftBlockData>> MAP = new HashMap<>();
++    public static final com.google.common.collect.BiMap<Property<?>, io.papermc.paper.world.data.Property<?>> DATA_PROPERTY_CACHE_MAP = com.google.common.collect.HashBiMap.create(); // Paper
+ 
+     static {
+         //<editor-fold desc="CraftBlockData Registration" defaultstate="collapsed">
+@@ -500,8 +502,150 @@ public class CraftBlockData implements BlockData {
+         register(net.minecraft.world.level.block.piston.PistonHeadBlock.class, org.bukkit.craftbukkit.block.impl.CraftPistonExtension::new);
+         register(net.minecraft.world.level.block.piston.MovingPistonBlock.class, org.bukkit.craftbukkit.block.impl.CraftPistonMoving::new);
+         //</editor-fold>
++        // Paper start - match up data properties with nms properties that have duplicate names
++        registerProp(BlockStateProperties.DOUBLE_BLOCK_HALF, io.papermc.paper.world.data.Property.DOUBLE_BLOCK_HALF);
++        registerProp(BlockStateProperties.HALF, io.papermc.paper.world.data.Property.HALF);
++        registerProp(BlockStateProperties.HORIZONTAL_AXIS, io.papermc.paper.world.data.Property.HORIZONTAL_AXIS);
++        registerProp(BlockStateProperties.AXIS, io.papermc.paper.world.data.Property.AXIS);
++        registerProp(BlockStateProperties.CHEST_TYPE, io.papermc.paper.world.data.Property.CHEST_TYPE);
++        registerProp(BlockStateProperties.PISTON_TYPE, io.papermc.paper.world.data.Property.PISTON_TYPE);
++        registerProp(BlockStateProperties.SLAB_TYPE, io.papermc.paper.world.data.Property.SLAB_TYPE);
++        registerProp(BlockStateProperties.MODE_COMPARATOR, io.papermc.paper.world.data.Property.MODE_COMPARATOR);
++        registerProp(BlockStateProperties.STRUCTUREBLOCK_MODE, io.papermc.paper.world.data.Property.STRUCTUREBLOCK_MODE);
++        registerProp(BlockStateProperties.WEST, io.papermc.paper.world.data.Property.WEST);
++        registerProp(BlockStateProperties.WEST_WALL, io.papermc.paper.world.data.Property.WEST_WALL);
++        registerProp(BlockStateProperties.WEST_REDSTONE, io.papermc.paper.world.data.Property.WEST_REDSTONE);
++        registerProp(BlockStateProperties.EAST, io.papermc.paper.world.data.Property.EAST);
++        registerProp(BlockStateProperties.EAST_WALL, io.papermc.paper.world.data.Property.EAST_WALL);
++        registerProp(BlockStateProperties.EAST_REDSTONE, io.papermc.paper.world.data.Property.EAST_REDSTONE);
++        registerProp(BlockStateProperties.NORTH, io.papermc.paper.world.data.Property.NORTH);
++        registerProp(BlockStateProperties.NORTH_WALL, io.papermc.paper.world.data.Property.NORTH_WALL);
++        registerProp(BlockStateProperties.NORTH_REDSTONE, io.papermc.paper.world.data.Property.NORTH_REDSTONE);
++        registerProp(BlockStateProperties.SOUTH, io.papermc.paper.world.data.Property.SOUTH);
++        registerProp(BlockStateProperties.SOUTH_WALL, io.papermc.paper.world.data.Property.SOUTH_WALL);
++        registerProp(BlockStateProperties.SOUTH_REDSTONE, io.papermc.paper.world.data.Property.SOUTH_REDSTONE);
++        registerProp(BlockStateProperties.RAIL_SHAPE, io.papermc.paper.world.data.Property.RAIL_SHAPE);
++        registerProp(BlockStateProperties.RAIL_SHAPE_STRAIGHT, io.papermc.paper.world.data.Property.RAIL_SHAPE_STRAIGHT);
++        registerProp(BlockStateProperties.STAIRS_SHAPE, io.papermc.paper.world.data.Property.STAIRS_SHAPE);
++        registerProp(BlockStateProperties.LEVEL_CAULDRON, io.papermc.paper.world.data.Property.LEVEL_CAULDRON);
++        registerProp(BlockStateProperties.LEVEL_COMPOSTER, io.papermc.paper.world.data.Property.LEVEL_COMPOSTER);
++        registerProp(BlockStateProperties.LEVEL_FLOWING, io.papermc.paper.world.data.Property.LEVEL_FLOWING);
++        registerProp(BlockStateProperties.LEVEL, io.papermc.paper.world.data.Property.LEVEL);
++        registerProp(BlockStateProperties.DISTANCE, io.papermc.paper.world.data.Property.DISTANCE);
++        registerProp(BlockStateProperties.STABILITY_DISTANCE, io.papermc.paper.world.data.Property.STABILITY_DISTANCE);
++        registerProp(BlockStateProperties.FACING, io.papermc.paper.world.data.Property.FACING);
++        registerProp(BlockStateProperties.FACING_HOPPER, io.papermc.paper.world.data.Property.FACING_HOPPER);
++        registerProp(BlockStateProperties.HORIZONTAL_FACING, io.papermc.paper.world.data.Property.HORIZONTAL_FACING);
++        registerProp(BlockStateProperties.AGE_1, io.papermc.paper.world.data.Property.AGE_1);
++        registerProp(BlockStateProperties.AGE_2, io.papermc.paper.world.data.Property.AGE_2);
++        registerProp(BlockStateProperties.AGE_3, io.papermc.paper.world.data.Property.AGE_3);
++        registerProp(BlockStateProperties.AGE_5, io.papermc.paper.world.data.Property.AGE_5);
++        registerProp(BlockStateProperties.AGE_7, io.papermc.paper.world.data.Property.AGE_7);
++        registerProp(BlockStateProperties.AGE_15, io.papermc.paper.world.data.Property.AGE_15);
++        registerProp(BlockStateProperties.AGE_25, io.papermc.paper.world.data.Property.AGE_25);
++    }
++
++    private static void registerProp(Property<?> nmsProperty, io.papermc.paper.world.data.Property<?> paperProperty) {
++        DATA_PROPERTY_CACHE_MAP.put(nmsProperty, paperProperty);
++    }
++
++    public static io.papermc.paper.world.data.Property<?> convertToPaperProperty(net.minecraft.world.level.block.state.properties.Property<?> nmsProperty) {
++        return DATA_PROPERTY_CACHE_MAP.computeIfAbsent(nmsProperty, prop -> {
++            java.util.Collection<io.papermc.paper.world.data.Property<?>> properties = io.papermc.paper.world.data.Property.PROPERTIES.get(prop.getName());
++            if (properties.size() == 1) {
++                return properties.iterator().next();
++            } else {
++                throw new IllegalArgumentException(nmsProperty + " should already be present in DATA_PROPERTY_CACHE_MAP");
++            }
++        });
++    }
++
++    public static Property<?> convertToNmsProperty(io.papermc.paper.world.data.Property<?> paperProperty) {
++        return DATA_PROPERTY_CACHE_MAP.inverse().computeIfAbsent(paperProperty, prop -> {
++            java.util.Collection<net.minecraft.world.level.block.state.properties.Property<?>> properties = net.minecraft.world.level.block.state.properties.Property.PROPERTY_MULTIMAP.get(prop.name());
++            if (properties.size() == 1) {
++                return properties.iterator().next();
++            } else {
++                throw new IllegalArgumentException(paperProperty + " should already be present in DATA_PROPERTY_CACHE_MAP");
++            }
++        });
++    }
++
++    @SuppressWarnings("unchecked")
++    @Override
++    public <T extends Comparable<T>> io.papermc.paper.world.data.Property<T> getProperty(String propertyName) {
++        final net.minecraft.world.level.block.state.properties.Property<?> nmsProperty = this.state.getBlock().getStateDefinition().getProperty(propertyName);
++        if (nmsProperty != null) {
++            return (io.papermc.paper.world.data.Property<T>) convertToPaperProperty(nmsProperty);
++        }
++        return null;
+     }
+ 
++    @Override
++    public <T extends Comparable<T>> boolean hasProperty(io.papermc.paper.world.data.Property<T> property) {
++        return this.state.hasProperty(convertToNmsProperty(property));
++    }
++
++    @SuppressWarnings("unchecked")
++    @Override
++    public <T extends Comparable<T>> T getValue(io.papermc.paper.world.data.Property<T> property) {
++        Preconditions.checkArgument(this.hasProperty(property), property.name() + " is not present on " + this);
++        final net.minecraft.world.level.block.state.properties.Property<?> nmsProperty = convertToNmsProperty(property);
++        if (nmsProperty instanceof IntegerProperty nmsIntProperty) {
++            final T value;
++            if (property instanceof io.papermc.paper.world.data.IntegerProperty.IntRepresented<?> intRepresented) {
++                value = ((io.papermc.paper.world.data.IntegerProperty.IntRepresented<T>) intRepresented).fromIntValue(this.get(nmsIntProperty));
++            } else {
++                value = this.get((Property<T>) nmsIntProperty);
++            }
++            return value;
++        } else if (nmsProperty instanceof BooleanProperty) {
++            return this.get((Property<T>) nmsProperty);
++        } else if (nmsProperty instanceof net.minecraft.world.level.block.state.properties.EnumProperty<?> enumProperty && property instanceof io.papermc.paper.world.data.EnumProperty<?> enumDataProperty) {
++            return (T) this.get(enumProperty, enumDataProperty.type());
++        } else {
++            throw new IllegalArgumentException("Did not recognize " + property + " and " + nmsProperty);
++        }
++    }
++
++    @Override
++    public <T extends Comparable<T>> java.util.Optional<T> getOptionalValue(io.papermc.paper.world.data.Property<T> property) {
++        if (!this.hasProperty(property)) {
++            return java.util.Optional.empty();
++        } else {
++            return java.util.Optional.of(this.getValue(property));
++        }
++    }
++
++    @SuppressWarnings("unchecked")
++    @Override
++    public <T extends Comparable<T>> void setValue(io.papermc.paper.world.data.Property<T> property, T value) {
++        Preconditions.checkNotNull(value, "Cannot set a data property to null");
++        Preconditions.checkArgument(this.hasProperty(property), property.name() + " is not present on " + this);
++        final Property<?> nmsProperty = convertToNmsProperty(property);
++        if (nmsProperty instanceof IntegerProperty nmsIntProperty) {
++            final int intValue;
++            if (property instanceof io.papermc.paper.world.data.IntegerProperty.IntRepresented<?> intRepresented) {
++                intValue = ((io.papermc.paper.world.data.IntegerProperty.IntRepresented<T>) intRepresented).toIntValue(value);
++            } else {
++                intValue = (Integer) value;
++            }
++            this.set(nmsIntProperty, intValue);
++        } else if (nmsProperty instanceof BooleanProperty nmsBoolProperty) {
++            this.set(nmsBoolProperty, (Boolean) value);
++        } else if (nmsProperty instanceof EnumProperty enumProperty && value instanceof Enum<?> enumValue) {
++            this.set(enumProperty, enumValue);
++        } else {
++            throw new IllegalArgumentException("Did not recognize " + property + " with value " + value + " (" + value.getClass().getSimpleName() + ") for " + nmsProperty);
++        }
++    }
++
++    @Override
++    public java.util.Collection<io.papermc.paper.world.data.Property<?>> getProperties() {
++        return java.util.Collections.unmodifiableCollection(com.google.common.collect.Collections2.transform(this.state.getProperties(), CraftBlockData::convertToPaperProperty));
++    }
++    // Paper end
++
+     private static void register(Class<? extends Block> nms, Function<BlockState, CraftBlockData> bukkit) {
+         Preconditions.checkState(CraftBlockData.MAP.put(nms, bukkit) == null, "Duplicate mapping %s->%s", nms, bukkit);
+     }
+diff --git a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
+index 1628913b1e9b91e68dcd942a38da4aed95b12d4a..5c38434609406563f6e7b3a43994f07de6196c18 100644
+--- a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
++++ b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
+@@ -617,6 +617,16 @@ public final class CraftMagicNumbers implements UnsafeValues {
+         net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome> biomeBase = cra.getHandle().registryAccess().registryOrThrow(net.minecraft.core.Registry.BIOME_REGISTRY).getHolderOrThrow(net.minecraft.resources.ResourceKey.create(net.minecraft.core.Registry.BIOME_REGISTRY, org.bukkit.craftbukkit.util.CraftNamespacedKey.toMinecraft(biomeKey)));
+         cra.setBiome(x, y, z, biomeBase);
+     }
++
++    @SuppressWarnings("unchecked")
++    @Override
++    public <B extends Enum<B>> String getPropertyEnumName(io.papermc.paper.world.data.EnumProperty<B> enumProperty, B bukkitEnum) {
++        final net.minecraft.world.level.block.state.properties.Property<?> nmsProperty = CraftBlockData.convertToNmsProperty(enumProperty);
++        if (!(nmsProperty instanceof net.minecraft.world.level.block.state.properties.EnumProperty nmsEnumProperty)) {
++            throw new IllegalArgumentException("Could not convert " + enumProperty + " to an nms EnumProperty");
++        }
++        return nmsEnumProperty.getName(CraftBlockData.toNMS(bukkitEnum, nmsEnumProperty.getValueClass()));
++    }
+     // Paper end
+ 
+     /**
+diff --git a/src/test/java/io/papermc/paper/world/data/PropertyTest.java b/src/test/java/io/papermc/paper/world/data/PropertyTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..717f28c1db25a0028501fa43aaead56e887eff20
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/world/data/PropertyTest.java
+@@ -0,0 +1,212 @@
++package io.papermc.paper.world.data;
++
++import com.google.common.collect.ImmutableMap;
++import net.minecraft.core.Direction;
++import net.minecraft.core.FrontAndTop;
++import net.minecraft.util.StringRepresentable;
++import net.minecraft.world.level.block.state.properties.AttachFace;
++import net.minecraft.world.level.block.state.properties.BambooLeaves;
++import net.minecraft.world.level.block.state.properties.BedPart;
++import net.minecraft.world.level.block.state.properties.BellAttachType;
++import net.minecraft.world.level.block.state.properties.BlockStateProperties;
++import net.minecraft.world.level.block.state.properties.ChestType;
++import net.minecraft.world.level.block.state.properties.ComparatorMode;
++import net.minecraft.world.level.block.state.properties.DoorHingeSide;
++import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
++import net.minecraft.world.level.block.state.properties.DripstoneThickness;
++import net.minecraft.world.level.block.state.properties.Half;
++import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
++import net.minecraft.world.level.block.state.properties.PistonType;
++import net.minecraft.world.level.block.state.properties.RailShape;
++import net.minecraft.world.level.block.state.properties.RedstoneSide;
++import net.minecraft.world.level.block.state.properties.SculkSensorPhase;
++import net.minecraft.world.level.block.state.properties.SlabType;
++import net.minecraft.world.level.block.state.properties.StairsShape;
++import net.minecraft.world.level.block.state.properties.StructureMode;
++import net.minecraft.world.level.block.state.properties.Tilt;
++import net.minecraft.world.level.block.state.properties.WallSide;
++import org.bukkit.Axis;
++import org.bukkit.Instrument;
++import org.bukkit.block.BlockFace;
++import org.bukkit.block.data.Bisected;
++import org.bukkit.block.data.FaceAttachable;
++import org.bukkit.block.data.Rail;
++import org.bukkit.block.data.type.Bamboo;
++import org.bukkit.block.data.type.Bed;
++import org.bukkit.block.data.type.Bell;
++import org.bukkit.block.data.type.BigDripleaf;
++import org.bukkit.block.data.type.Chest;
++import org.bukkit.block.data.type.Comparator;
++import org.bukkit.block.data.type.Door;
++import org.bukkit.block.data.type.Jigsaw;
++import org.bukkit.block.data.type.PointedDripstone;
++import org.bukkit.block.data.type.RedstoneWire;
++import org.bukkit.block.data.type.SculkSensor;
++import org.bukkit.block.data.type.Slab;
++import org.bukkit.block.data.type.Stairs;
++import org.bukkit.block.data.type.StructureBlock;
++import org.bukkit.block.data.type.TechnicalPiston;
++import org.bukkit.block.data.type.Wall;
++import org.bukkit.craftbukkit.block.data.CraftBlockData;
++import org.bukkit.support.AbstractTestingBase;
++import org.junit.After;
++import org.junit.Before;
++import org.junit.Test;
++
++import java.io.PrintStream;
++import java.lang.reflect.Field;
++import java.lang.reflect.Modifier;
++import java.util.ArrayList;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Map;
++
++import static org.junit.Assert.assertEquals;
++import static org.junit.Assert.assertFalse;
++import static org.junit.Assert.assertNotNull;
++import static org.junit.Assert.assertTrue;
++
++public class PropertyTest extends AbstractTestingBase {
++
++    private static final Map<Class<? extends Enum<? extends StringRepresentable>>, Class<? extends Enum<?>>> ENUM_MAPPING = ImmutableMap.<Class<? extends Enum<? extends StringRepresentable>>, Class<? extends Enum<?>>>builder()
++        .put(DoorHingeSide.class, Door.Hinge.class)
++        .put(SlabType.class, Slab.Type.class)
++        .put(StructureMode.class, StructureBlock.Mode.class)
++        .put(FrontAndTop.class, Jigsaw.Orientation.class)
++        .put(DripstoneThickness.class, PointedDripstone.Thickness.class)
++        .put(WallSide.class, Wall.Height.class)
++        .put(BellAttachType.class, Bell.Attachment.class)
++        .put(NoteBlockInstrument.class, Instrument.class)
++        .put(StairsShape.class, Stairs.Shape.class)
++        .put(Direction.class, BlockFace.class)
++        .put(ComparatorMode.class, Comparator.Mode.class)
++        .put(PistonType.class, TechnicalPiston.Type.class)
++        .put(BedPart.class, Bed.Part.class)
++        .put(Half.class, Bisected.Half.class)
++        .put(AttachFace.class, FaceAttachable.AttachedFace.class)
++        .put(RailShape.class, Rail.Shape.class)
++        .put(SculkSensorPhase.class, SculkSensor.Phase.class)
++        .put(DoubleBlockHalf.class, Bisected.Half.class)
++        .put(Tilt.class, BigDripleaf.Tilt.class)
++        .put(ChestType.class, Chest.Type.class)
++        .put(RedstoneSide.class, RedstoneWire.Connection.class)
++        .put(Direction.Axis.class, Axis.class)
++        .put(BambooLeaves.class, Bamboo.Leaves.class)
++        .build();
++
++    private PrintStream old;
++    @Before
++    public void beforeEach() {
++        old = System.out;
++    }
++
++    @After
++    public void afterEach() {
++        System.setOut(this.old);
++    }
++
++    @Test
++    public void testEnumMapping() throws IllegalAccessException {
++        Map<String, net.minecraft.world.level.block.state.properties.EnumProperty> nmsPropertyMap = collectProperties(BlockStateProperties.class, net.minecraft.world.level.block.state.properties.EnumProperty.class);
++        for (net.minecraft.world.level.block.state.properties.EnumProperty value : nmsPropertyMap.values()) {
++            assertNotNull(ENUM_MAPPING.get(value.getValueClass()));
++        }
++    }
++
++    @Test
++    public void validateProperties() throws IllegalAccessException {
++        Map<String, net.minecraft.world.level.block.state.properties.Property> nmsPropertyMap = collectProperties(BlockStateProperties.class, net.minecraft.world.level.block.state.properties.Property.class);
++        Map<String, Property> paperPropertyMap = collectProperties(Property.class, Property.class);
++        List<String> missing = new ArrayList<>();
++        List<String> invalid = new ArrayList<>();
++        nmsPropertyMap.forEach((name, prop) -> {
++            if (paperPropertyMap.containsKey(name)) {
++                if (!isEqual(prop, paperPropertyMap.get(name))) {
++                    invalid.add(name + ": \n\t" + paperPropertyMap.get(name) + "\n\t" + prop);
++                }
++                paperPropertyMap.remove(name);
++            } else {
++                missing.add(stringifyPropertyField(name, prop));
++            }
++        });
++
++        assertEquals("Invalid Property: \n" + String.join("\n", invalid) + "\n", 0, invalid.size());
++        assertEquals("Extra Property: \n" + String.join("\n", paperPropertyMap.keySet()) + "\n", 0, paperPropertyMap.size());
++        assertEquals("Missing Property: \n" + String.join("\n", missing) + "\n", 0, missing.size());
++    }
++
++
++    @Test
++    public void testToNmsPropertyConversion() {
++        assertFalse("no paper properties found", Property.PROPERTIES.isEmpty());
++        for (Property<?> property : Property.PROPERTIES.values()) {
++            net.minecraft.world.level.block.state.properties.Property<?> nmsProperty = CraftBlockData.convertToNmsProperty(property);
++            assertNotNull("Could not convert " + property + " to its nms counterpart", nmsProperty);
++            assertTrue(property.name() + " is not equal to " + nmsProperty.getName(), isEqual(nmsProperty, property));
++        }
++    }
++
++    @Test
++    public void testToPaperPropertyConversion() {
++        assertFalse("no nms properties found", net.minecraft.world.level.block.state.properties.Property.PROPERTY_MULTIMAP.isEmpty());
++        for (net.minecraft.world.level.block.state.properties.Property<?> nmsProp : net.minecraft.world.level.block.state.properties.Property.PROPERTY_MULTIMAP.values()) {
++            Property<?> paperProp = CraftBlockData.convertToPaperProperty(nmsProp);
++            assertNotNull("Could not convert " + nmsProp + " to its paper counterpart", paperProp);
++            assertTrue(nmsProp.getName() + " is not equal to " + paperProp.name(), isEqual(nmsProp, paperProp));
++        }
++    }
++
++    private static boolean isEqual(net.minecraft.world.level.block.state.properties.Property<?> nmsProperty, Property<?> property) {
++        // special cases
++        if (property instanceof RotationProperty && nmsProperty instanceof net.minecraft.world.level.block.state.properties.IntegerProperty && nmsProperty.getName().equals("rotation")) {
++            return nmsProperty.getPossibleValues().size() == property.values().size();
++        } else if (property instanceof NoteProperty && nmsProperty instanceof net.minecraft.world.level.block.state.properties.IntegerProperty && nmsProperty.getName().equals("note")) {
++            return nmsProperty.getPossibleValues().size() == property.values().size();
++        }
++        // end special cases
++        if (nmsProperty instanceof net.minecraft.world.level.block.state.properties.BooleanProperty && property instanceof BooleanProperty) {
++            return true;
++        } else if (nmsProperty instanceof net.minecraft.world.level.block.state.properties.IntegerProperty intProp && property instanceof IntegerProperty prop) {
++            return intProp.min == prop.min() && intProp.max == prop.max() && intProp.getPossibleValues().size() == prop.values().size();
++        } else if (nmsProperty instanceof net.minecraft.world.level.block.state.properties.EnumProperty<?> enumProp && property instanceof EnumProperty<?> prop) {
++            return ENUM_MAPPING.get(enumProp.getValueClass()) == prop.type() && enumProp.getPossibleValues().size() == prop.values().size();
++        }
++        return false;
++    }
++
++    private static String stringifyPropertyField(String fieldName, net.minecraft.world.level.block.state.properties.Property<?> property) {
++        if (property instanceof net.minecraft.world.level.block.state.properties.IntegerProperty intProp) {
++            // special cases
++            if (property == BlockStateProperties.ROTATION_16) { /** see {@link RotationProperty} */
++                return "public static final RotationProperty " + fieldName + " = new RotationProperty(\"" + property.getName() + "\");";
++            } else if (property == BlockStateProperties.NOTE) { /** see {@link NoteProperty} */
++                return "public static final NoteProperty " + fieldName + " = new NoteProperty(\"" + property.getName() + "\");";
++            }
++            // end special cases
++            return "public static final IntegerProperty " + fieldName + " = integer(\"" + property.getName() +  "\", " + intProp.min + ", " + intProp.max + ");";
++        } else if (property instanceof net.minecraft.world.level.block.state.properties.BooleanProperty) {
++            return "public static final BooleanProperty " + fieldName + " = bool(\"" + property.getName() + "\");";
++        } else if (property instanceof net.minecraft.world.level.block.state.properties.EnumProperty<?> enumProp) {
++            final String value;
++            if (!ENUM_MAPPING.containsKey(enumProp.getValueClass())) {
++                throw new AssertionError("Missing enum mapping for " + enumProp.getValueClass()); // comment out to catch all missing types
++            }
++            Class<? extends Enum<?>> bukkitEnum = ENUM_MAPPING.get(enumProp.getValueClass());
++            String name = (bukkitEnum.isMemberClass() ? bukkitEnum.getEnclosingClass().getSimpleName() + "." : "") + bukkitEnum.getSimpleName();
++            value = "public static final EnumProperty<" + name + "> " + fieldName + " = enumeration(\"" + property.getName() + "\", " + name + ".class);";
++            return value;
++        }
++        throw new AssertionError(property + " is not a recognized property type");
++    }
++
++    private static <P> Map<String, P> collectProperties(Class<?> containerClass, Class<P> propertyClass) throws IllegalAccessException {
++        final Map<String, P> propertyMap = new LinkedHashMap<>();
++        for (Field field : containerClass.getFields()) {
++            if (!Modifier.isStatic(field.getModifiers()) || !propertyClass.isAssignableFrom(field.getType())) {
++                continue;
++            }
++            propertyMap.put(field.getName(), propertyClass.cast(field.get(null)));
++        }
++        return propertyMap;
++    }
++}
