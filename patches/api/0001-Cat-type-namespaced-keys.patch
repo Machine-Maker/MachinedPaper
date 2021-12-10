@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Tue, 1 Feb 2022 12:10:00 -0800
+Subject: [PATCH] Cat type namespaced keys
+
+
+diff --git a/src/main/java/org/bukkit/entity/Cat.java b/src/main/java/org/bukkit/entity/Cat.java
+index c340fecb61bac66baf0f44189d21bc85289b1269..44cb71b46fab4de5364ed141ff212c3ba5bea469 100644
+--- a/src/main/java/org/bukkit/entity/Cat.java
++++ b/src/main/java/org/bukkit/entity/Cat.java
+@@ -41,7 +41,7 @@ public interface Cat extends Tameable, Sittable {
+     /**
+      * Represents the various different cat types there are.
+      */
+-    public enum Type {
++    public enum Type implements org.bukkit.Keyed { // Paper
+         TABBY,
+         BLACK,
+         RED,
+@@ -53,6 +53,20 @@ public interface Cat extends Tameable, Sittable {
+         WHITE,
+         JELLIE,
+         ALL_BLACK;
++        // Paper start
++        final org.bukkit.NamespacedKey key;
++        Type() {
++            this.key = org.bukkit.NamespacedKey.minecraft("textures/entity/cat/" + this.name().toLowerCase(java.util.Locale.ENGLISH) + ".png");
++        }
++
++        /**
++         * The texture key used for this cat type. Used in advancements
++         */
++        @Override
++        public org.bukkit.@NotNull NamespacedKey getKey() {
++            return this.key;
++        }
++        // Paper end
+     }
+ 
+     // Paper Start - More cat api
