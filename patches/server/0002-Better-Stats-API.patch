@@ -3,17 +3,20 @@ From: Jake Potrebic <jake.m.potrebic@gmail.com>
 Date: Thu, 20 May 2021 01:10:15 -0700
 Subject: [PATCH] Better Stats API
 
+== AT ==
+public net.minecraft.stats.StatType map
 
-diff --git a/src/main/java/io/papermc/paper/statistics/PaperStatistics.java b/src/main/java/io/papermc/paper/statistics/PaperStatistics.java
+diff --git a/src/main/java/io/papermc/paper/statistic/PaperStatistics.java b/src/main/java/io/papermc/paper/statistic/PaperStatistics.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e8031afc4eb0c7dabb473b4dd58e7d8fb4fdd4a1
+index 0000000000000000000000000000000000000000..37f49a5959adeb8ce7dafad45ea7881acbb8f04e
 --- /dev/null
-+++ b/src/main/java/io/papermc/paper/statistics/PaperStatistics.java
-@@ -0,0 +1,108 @@
-+package io.papermc.paper.statistics;
++++ b/src/main/java/io/papermc/paper/statistic/PaperStatistics.java
+@@ -0,0 +1,93 @@
++package io.papermc.paper.statistic;
 +
 +import com.google.common.base.Preconditions;
-+import net.minecraft.core.Registry;
++import java.util.Objects;
++import net.minecraft.core.registries.BuiltInRegistries;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.stats.ServerStatsCounter;
 +import net.minecraft.stats.Stat;
@@ -22,6 +25,7 @@ index 0000000000000000000000000000000000000000..e8031afc4eb0c7dabb473b4dd58e7d8f
 +import net.minecraft.world.item.Item;
 +import net.minecraft.world.level.block.Block;
 +import org.bukkit.Material;
++import org.bukkit.Registry;
 +import org.bukkit.craftbukkit.util.CraftMagicNumbers;
 +import org.bukkit.craftbukkit.util.CraftNamespacedKey;
 +import org.bukkit.entity.EntityType;
@@ -29,27 +33,24 @@ index 0000000000000000000000000000000000000000..e8031afc4eb0c7dabb473b4dd58e7d8f
 +import org.checkerframework.checker.nullness.qual.Nullable;
 +import org.checkerframework.framework.qual.DefaultQualifier;
 +
-+import java.util.Objects;
-+
 +@DefaultQualifier(NonNull.class)
 +public final class PaperStatistics {
 +
 +    private PaperStatistics() {
 +    }
 +
-+    public static void incrementStatistic(ServerStatsCounter manager, Statistic<?> statistic, int amount) {
-+        Preconditions.checkArgument(amount > 0, "Amount must be greater than 0");
-+        setStatistic(manager, statistic, getStatistic(manager, statistic) + amount);
-+    }
-+
-+    public static void decrementStatistic(ServerStatsCounter manager, Statistic<?> statistic, int amount) {
-+        Preconditions.checkArgument(amount > 0, "Amount must be greater than 0");
-+        setStatistic(manager, statistic, getStatistic(manager, statistic) - amount);
++    public static void changeStatistic(ServerStatsCounter manager, Statistic<?> statistic, int delta) {
++        if (delta == 0) return;
++        Preconditions.checkNotNull(statistic, "statistic cannot be null");
++        final Stat<?> stat = getNMSStatistic(statistic);
++        //noinspection ConstantConditions
++        manager.setValue(null, stat, manager.getValue(stat) + delta);
 +    }
 +
 +    public static void setStatistic(ServerStatsCounter manager, Statistic<?> statistic, int newAmount) {
 +        Preconditions.checkNotNull(statistic, "Statistic cannot be null");
 +        Preconditions.checkArgument(newAmount >= 0, "New amount must be greater than or equal to 0");
++        //noinspection ConstantConditions
 +        manager.setValue(null, getNMSStatistic(statistic), newAmount);
 +    }
 +
@@ -63,66 +64,52 @@ index 0000000000000000000000000000000000000000..e8031afc4eb0c7dabb473b4dd58e7d8f
 +        return nmsStat.format(manager.getValue(nmsStat));
 +    }
 +
++    @SuppressWarnings("unchecked")
 +    public static Statistic<?> getPaperStatistic(Stat<?> nmsStat) {
-+        final ResourceLocation statTypeKey = Preconditions.checkNotNull(Registry.STAT_TYPE.getKey(nmsStat.getType()), "Could not get the stat type resource location from " + nmsStat);
-+        final @Nullable StatisticType<?> type = org.bukkit.Registry.STATISTIC_TYPES.get(CraftNamespacedKey.fromMinecraft(statTypeKey));
++        final ResourceLocation statTypeKey = Preconditions.checkNotNull(BuiltInRegistries.STAT_TYPE.getKey(nmsStat.getType()), "Could not get the stat type resource location from " + nmsStat);
++        final @Nullable StatisticType<?> type = Registry.STATISTIC_TYPES.get(CraftNamespacedKey.fromMinecraft(statTypeKey));
 +        final Statistic<?> paperStat;
 +        if (type == StatisticType.BLOCK_MINED) {
 +            paperStat = StatisticType.BLOCK_MINED.of(CraftMagicNumbers.getMaterial((Block) nmsStat.getValue()));
-+        } else if (type == StatisticType.ITEM_CRAFTED) {
-+            paperStat = StatisticType.ITEM_CRAFTED.of(CraftMagicNumbers.getMaterial((Item) nmsStat.getValue()));
-+        } else if (type == StatisticType.ITEM_USED) {
-+            paperStat = StatisticType.ITEM_USED.of(CraftMagicNumbers.getMaterial((Item) nmsStat.getValue()));
-+        } else if (type == StatisticType.ITEM_BROKEN) {
-+            paperStat = StatisticType.ITEM_BROKEN.of(CraftMagicNumbers.getMaterial((Item) nmsStat.getValue()));
-+        } else if (type == StatisticType.ITEM_PICKED_UP) {
-+            paperStat = StatisticType.ITEM_PICKED_UP.of(CraftMagicNumbers.getMaterial((Item) nmsStat.getValue()));
-+        } else if (type == StatisticType.ITEM_DROPPED) {
-+            paperStat = StatisticType.ITEM_DROPPED.of(CraftMagicNumbers.getMaterial((Item) nmsStat.getValue()));
++        } else if (type == StatisticType.ITEM_CRAFTED || type == StatisticType.ITEM_USED || type == StatisticType.ITEM_BROKEN || type == StatisticType.ITEM_PICKED_UP || type == StatisticType.ITEM_DROPPED) {
++            paperStat = ((StatisticType<Material>) type).of(CraftMagicNumbers.getMaterial((Item) nmsStat.getValue()));
 +        } else if (type == StatisticType.ENTITY_KILLED) {
 +            paperStat = StatisticType.ENTITY_KILLED.of(CraftMagicNumbers.getEntityType((net.minecraft.world.entity.EntityType<?>) nmsStat.getValue()));
 +        } else if (type == StatisticType.ENTITY_KILLED_BY) {
 +            paperStat = StatisticType.ENTITY_KILLED_BY.of(CraftMagicNumbers.getEntityType((net.minecraft.world.entity.EntityType<?>) nmsStat.getValue()));
 +        } else if (type == StatisticType.CUSTOM_STATS) {
-+            paperStat = StatisticType.CUSTOM_STATS.of(org.bukkit.Registry.CUSTOM_STATISTICS.get(CraftNamespacedKey.fromMinecraft((ResourceLocation) nmsStat.getValue())));
++            paperStat = StatisticType.CUSTOM_STATS.of(Objects.requireNonNull(Registry.CUSTOM_STATISTICS.get(CraftNamespacedKey.fromMinecraft((ResourceLocation) nmsStat.getValue()))));
 +        } else {
 +            throw new IllegalArgumentException("Did not recognize " + type + " as a statistic type");
 +        }
 +        return Objects.requireNonNull(paperStat, "Couldn't convert " + nmsStat + " to a stat of type " + type);
 +    }
 +
++    @SuppressWarnings("unchecked")
 +    public static Stat<?> getNMSStatistic(Statistic<?> paperStat) {
-+        final StatType<?> type = Preconditions.checkNotNull(Registry.STAT_TYPE.get(CraftNamespacedKey.toMinecraft(paperStat.getType().getKey())), paperStat + " could not be converted to a nms StatType");
++        final StatType<?> type = Preconditions.checkNotNull(BuiltInRegistries.STAT_TYPE.get(CraftNamespacedKey.toMinecraft(paperStat.type().getKey())), paperStat + " could not be converted to a nms StatType");
 +        final Stat<?> nmsStat;
 +        if (type == Stats.BLOCK_MINED) {
-+            nmsStat = Stats.BLOCK_MINED.get(CraftMagicNumbers.getBlock((Material) paperStat.getStat()));
-+        } else if (type == Stats.ITEM_CRAFTED) {
-+            nmsStat = Stats.ITEM_CRAFTED.get(CraftMagicNumbers.getItem((Material) paperStat.getStat()));
-+        } else if (type == Stats.ITEM_USED) {
-+            nmsStat = Stats.ITEM_USED.get(CraftMagicNumbers.getItem((Material) paperStat.getStat()));
-+        } else if (type == Stats.ITEM_BROKEN) {
-+            nmsStat = Stats.ITEM_BROKEN.get(CraftMagicNumbers.getItem((Material) paperStat.getStat()));
-+        } else if (type == Stats.ITEM_PICKED_UP) {
-+            nmsStat = Stats.ITEM_PICKED_UP.get(CraftMagicNumbers.getItem((Material) paperStat.getStat()));
-+        } else if (type == Stats.ITEM_DROPPED) {
-+            nmsStat = Stats.ITEM_DROPPED.get(CraftMagicNumbers.getItem((Material) paperStat.getStat()));
++            nmsStat = Stats.BLOCK_MINED.get(CraftMagicNumbers.getBlock((Material) paperStat.value()));
++        } else if (type == Stats.ITEM_CRAFTED || type == Stats.ITEM_USED || type == Stats.ITEM_BROKEN || type == Stats.ITEM_PICKED_UP || type == Stats.ITEM_DROPPED) {
++            nmsStat = ((StatType<Item>) type).get(CraftMagicNumbers.getItem((Material) paperStat.value()));
 +        } else if (type == Stats.ENTITY_KILLED) {
-+            nmsStat = Stats.ENTITY_KILLED.get(CraftMagicNumbers.getEntityTypes((EntityType) paperStat.getStat()));
++            nmsStat = Stats.ENTITY_KILLED.get(CraftMagicNumbers.getEntityTypes((EntityType) paperStat.value()));
 +        } else if (type == Stats.ENTITY_KILLED_BY) {
-+            nmsStat = Stats.ENTITY_KILLED_BY.get(CraftMagicNumbers.getEntityTypes((EntityType) paperStat.getStat()));
++            nmsStat = Stats.ENTITY_KILLED_BY.get(CraftMagicNumbers.getEntityTypes((EntityType) paperStat.value()));
 +        } else if (type == Stats.CUSTOM) {
-+            nmsStat = Stats.CUSTOM.map.get(Registry.CUSTOM_STAT.get(CraftNamespacedKey.toMinecraft(((CustomStatistic) paperStat.getStat()).getKey())));
++            nmsStat = Stats.CUSTOM.map.get(BuiltInRegistries.CUSTOM_STAT.get(CraftNamespacedKey.toMinecraft(((CustomStatistic) paperStat.value()).getKey())));
 +        } else {
-+            throw new IllegalArgumentException("Did not recognize " + Registry.STAT_TYPE.getKey(type) + " as a statistic type");
++            throw new IllegalArgumentException("Did not recognize " + BuiltInRegistries.STAT_TYPE.getKey(type) + " as a statistic type");
 +        }
 +        return Objects.requireNonNull(nmsStat, "Couldn't convert " + paperStat + " into a nms stat");
 +    }
 +}
 diff --git a/src/main/java/net/minecraft/stats/ServerStatsCounter.java b/src/main/java/net/minecraft/stats/ServerStatsCounter.java
-index c59f98ca3adfdd90cdc5999aeadbb0834efedc0f..a188b93e8b413571ce787c45842f7b9760b0f996 100644
+index 72946e324c575ef39f3939225b96b68f724da460..d45dc0022e667a6ea100f293a775b58dfc7e09e3 100644
 --- a/src/main/java/net/minecraft/stats/ServerStatsCounter.java
 +++ b/src/main/java/net/minecraft/stats/ServerStatsCounter.java
-@@ -247,6 +247,20 @@ public class ServerStatsCounter extends StatsCounter {
+@@ -248,6 +248,20 @@ public class ServerStatsCounter extends StatsCounter {
  
              object2intmap.put(statistic, this.getValue(statistic));
          }
@@ -132,85 +119,64 @@ index c59f98ca3adfdd90cdc5999aeadbb0834efedc0f..a188b93e8b413571ce787c45842f7b97
 +                player.getBukkitEntity(),
 +                object2intmap.object2IntEntrySet()
 +                    .stream()
-+                    .collect(Object2IntOpenHashMap::new, (map, entry) -> map.put(io.papermc.paper.statistics.PaperStatistics.getPaperStatistic(entry.getKey()), entry.getIntValue()), Object2IntOpenHashMap::putAll)
++                    .collect(Object2IntOpenHashMap::new, (map, entry) -> map.put(io.papermc.paper.statistic.PaperStatistics.getPaperStatistic(entry.getKey()), entry.getIntValue()), Object2IntOpenHashMap::putAll)
 +            );
 +            if (!statEvent.callEvent()) {
 +                return;
 +            }
-+            object2intmap = statEvent.getStatisticMap().object2IntEntrySet().stream().collect(Object2IntOpenHashMap::new, (map, entry) -> map.put(io.papermc.paper.statistics.PaperStatistics.getNMSStatistic(entry.getKey()), entry.getIntValue()), Object2IntOpenHashMap::putAll);
++            object2intmap = statEvent.getStatisticMap().object2IntEntrySet().stream().collect(Object2IntOpenHashMap::new, (map, entry) -> map.put(io.papermc.paper.statistic.PaperStatistics.getNMSStatistic(entry.getKey()), entry.getIntValue()), Object2IntOpenHashMap::putAll);
 +        }
 +        // Paper end
  
          player.connection.send(new ClientboundAwardStatsPacket(object2intmap));
      }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java b/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java
-index 6d2ba650f53de8a460857f1846401a20b50cc43c..15fe4c97f1613920eacb496c06de6b141c418214 100644
+index 714afc98b5150907b45a00060be4e41582333204..66cce2b61d826f2b3af7c184e88bcfa7267542cc 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java
-@@ -358,6 +358,69 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+@@ -358,6 +358,48 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
          return this.server.getHandle().getPlayerStats(this.getUniqueId(), this.getName());
      }
  
 +    // Paper start
 +    @Override
-+    public void incrementStatistic(io.papermc.paper.statistics.Statistic<?> statistic) {
-+        this.incrementStatistic(statistic, 1);
-+    }
-+
-+    @Override
-+    public void decrementStatistic(io.papermc.paper.statistics.Statistic<?> statistic) {
-+        this.decrementStatistic(statistic, 1);
-+    }
-+
-+    @Override
-+    public void incrementStatistic(io.papermc.paper.statistics.Statistic<?> statistic, int amount) {
++    public void incrementStatistic(io.papermc.paper.statistic.Statistic<?> statistic, int amount) {
 +        if (this.isOnline()) {
 +            this.getPlayer().incrementStatistic(statistic, amount);
 +        } else {
 +            ServerStatsCounter manager = getStatisticManager();
-+            io.papermc.paper.statistics.PaperStatistics.incrementStatistic(manager, statistic, amount);
++            io.papermc.paper.statistic.PaperStatistics.changeStatistic(manager, statistic, amount);
 +            manager.save();
 +        }
 +
 +    }
 +
 +    @Override
-+    public void decrementStatistic(io.papermc.paper.statistics.Statistic<?> statistic, int amount) {
-+        if (this.isOnline()) {
-+            this.getPlayer().decrementStatistic(statistic, amount);
-+        } else {
-+            ServerStatsCounter manager = getStatisticManager();
-+            io.papermc.paper.statistics.PaperStatistics.decrementStatistic(manager, statistic, amount);
-+            manager.save();
-+        }
-+    }
-+
-+    @Override
-+    public void setStatistic(io.papermc.paper.statistics.Statistic<?> statistic, int newAmount) {
++    public void setStatistic(io.papermc.paper.statistic.Statistic<?> statistic, int newAmount) {
 +        if (this.isOnline()) {
 +            this.getPlayer().setStatistic(statistic, newAmount);
 +        } else {
 +            ServerStatsCounter manager = getStatisticManager();
-+            io.papermc.paper.statistics.PaperStatistics.setStatistic(manager, statistic, newAmount);
++            io.papermc.paper.statistic.PaperStatistics.setStatistic(manager, statistic, newAmount);
 +            manager.save();
 +        }
 +    }
 +
 +    @Override
-+    public int getStatistic(io.papermc.paper.statistics.Statistic<?> statistic) {
++    public int getStatistic(io.papermc.paper.statistic.Statistic<?> statistic) {
 +        if (isOnline()) {
 +            return this.getPlayer().getStatistic(statistic);
 +        } else {
-+            return io.papermc.paper.statistics.PaperStatistics.getStatistic(getStatisticManager(), statistic);
++            return io.papermc.paper.statistic.PaperStatistics.getStatistic(getStatisticManager(), statistic);
 +        }
 +    }
 +
 +    @Override
-+    public String getFormattedValue(io.papermc.paper.statistics.Statistic<?> statistic) {
++    public String getFormattedValue(io.papermc.paper.statistic.Statistic<?> statistic) {
 +        if (this.isOnline()) {
 +            return this.getPlayer().getFormattedValue(statistic);
 +        } else {
-+            return io.papermc.paper.statistics.PaperStatistics.getFormattedValue(getStatisticManager(), statistic);
++            return io.papermc.paper.statistic.PaperStatistics.getFormattedValue(getStatisticManager(), statistic);
 +        }
 +    }
 +    // Paper end
@@ -218,83 +184,263 @@ index 6d2ba650f53de8a460857f1846401a20b50cc43c..15fe4c97f1613920eacb496c06de6b14
      public void incrementStatistic(Statistic statistic) {
          if (this.isOnline()) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftStatistic.java b/src/main/java/org/bukkit/craftbukkit/CraftStatistic.java
-index 8dbb608e18e9826107f6ca1d93b7033bb1e3407c..613db0666be396013cb0052c9c62cc6786dc4942 100644
+index 64ac41008c6f4367d7a3f20ccb181605ff3cd8da..f2b13a2beec9934c15e9a0175849549523280c50 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftStatistic.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftStatistic.java
-@@ -16,6 +16,7 @@ import org.bukkit.Statistic.Type;
+@@ -17,6 +17,7 @@ import org.bukkit.Statistic.Type;
  import org.bukkit.craftbukkit.util.CraftMagicNumbers;
  import org.bukkit.entity.EntityType;
  
-+@Deprecated // Paper
++@Deprecated(forRemoval = true) // Paper
  public enum CraftStatistic {
      DAMAGE_DEALT(Stats.DAMAGE_DEALT),
      DAMAGE_TAKEN(Stats.DAMAGE_TAKEN),
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 66830ccee464083879f79db4111e08fecee417ec..a5461bdaabb1e923fc6440994c3d9e9e94f13179 100644
+index c33e92cee1291c0ca1863fa8f33cd3b1c5449e92..7d37f634aa86a7de63a00cd0a11d7ca458e37b74 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-@@ -1447,6 +1447,42 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+@@ -1450,6 +1450,27 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
          return bukkitRecipeKeys.build();
      }
  
 +    // Paper start
 +    @Override
-+    public void incrementStatistic(io.papermc.paper.statistics.Statistic<?> statistic) {
-+        this.incrementStatistic(statistic, 1);
++    public void incrementStatistic(io.papermc.paper.statistic.Statistic<?> statistic, int amount) {
++        io.papermc.paper.statistic.PaperStatistics.changeStatistic(this.getHandle().getStats(), statistic, amount);
 +    }
 +
 +    @Override
-+    public void decrementStatistic(io.papermc.paper.statistics.Statistic<?> statistic) {
-+        this.decrementStatistic(statistic, 1);
++    public void setStatistic(io.papermc.paper.statistic.Statistic<?> statistic, int newAmount) {
++        io.papermc.paper.statistic.PaperStatistics.setStatistic(this.getHandle().getStats(), statistic, newAmount);
 +    }
 +
 +    @Override
-+    public void incrementStatistic(io.papermc.paper.statistics.Statistic<?> statistic, int amount) {
-+        io.papermc.paper.statistics.PaperStatistics.incrementStatistic(this.getHandle().getStats(), statistic, amount);
++    public int getStatistic(io.papermc.paper.statistic.Statistic<?> statistic) {
++        return io.papermc.paper.statistic.PaperStatistics.getStatistic(this.getHandle().getStats(), statistic);
 +    }
 +
 +    @Override
-+    public void decrementStatistic(io.papermc.paper.statistics.Statistic<?> statistic, int amount) {
-+        io.papermc.paper.statistics.PaperStatistics.decrementStatistic(this.getHandle().getStats(), statistic, amount);
-+    }
-+
-+    @Override
-+    public void setStatistic(io.papermc.paper.statistics.Statistic<?> statistic, int newAmount) {
-+        io.papermc.paper.statistics.PaperStatistics.setStatistic(this.getHandle().getStats(), statistic, newAmount);
-+    }
-+
-+    @Override
-+    public int getStatistic(io.papermc.paper.statistics.Statistic<?> statistic) {
-+        return io.papermc.paper.statistics.PaperStatistics.getStatistic(this.getHandle().getStats(), statistic);
-+    }
-+
-+    @Override
-+    public String getFormattedValue(io.papermc.paper.statistics.Statistic<?> statistic) {
-+        return io.papermc.paper.statistics.PaperStatistics.getFormattedValue(this.getHandle().getStats(), statistic);
++    public String getFormattedValue(io.papermc.paper.statistic.Statistic<?> statistic) {
++        return io.papermc.paper.statistic.PaperStatistics.getFormattedValue(this.getHandle().getStats(), statistic);
 +    }
 +    // Paper end
      @Override
      public void incrementStatistic(Statistic statistic) {
          CraftStatistic.incrementStatistic(this.getHandle().getStats(), statistic);
-diff --git a/src/test/java/io/papermc/paper/statistics/PaperStatsTest.java b/src/test/java/io/papermc/paper/statistics/PaperStatsTest.java
-new file mode 100644
-index 0000000000000000000000000000000000000000..9d1e2200707b007d9e72b3ad2575878697554651
---- /dev/null
-+++ b/src/test/java/io/papermc/paper/statistics/PaperStatsTest.java
-@@ -0,0 +1,62 @@
-+package io.papermc.paper.statistics;
+diff --git a/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java b/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java
+index 6a52ae70b5f7fd9953b6b2605cae722f606e7fec..90d09b6168ca9d987e679d656c3672a04a2f12cb 100644
+--- a/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java
++++ b/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java
+@@ -1592,49 +1592,42 @@ public class CraftEventFactory {
+         return !event.isCancelled();
+     }
+ 
++    // Paper start - better stats api
++    private static final java.util.Set<io.papermc.paper.statistic.CustomStatistic> IGNORED_STATS = java.util.Set.of(
++        io.papermc.paper.statistic.CustomStatistic.FALL_ONE_CM,
++        io.papermc.paper.statistic.CustomStatistic.BOAT_ONE_CM,
++        io.papermc.paper.statistic.CustomStatistic.CLIMB_ONE_CM,
++        io.papermc.paper.statistic.CustomStatistic.WALK_ON_WATER_ONE_CM,
++        io.papermc.paper.statistic.CustomStatistic.WALK_UNDER_WATER_ONE_CM,
++        io.papermc.paper.statistic.CustomStatistic.FLY_ONE_CM,
++        io.papermc.paper.statistic.CustomStatistic.HORSE_ONE_CM,
++        io.papermc.paper.statistic.CustomStatistic.MINECART_ONE_CM,
++        io.papermc.paper.statistic.CustomStatistic.PIG_ONE_CM,
++        io.papermc.paper.statistic.CustomStatistic.PLAY_TIME,
++        io.papermc.paper.statistic.CustomStatistic.SWIM_ONE_CM,
++        io.papermc.paper.statistic.CustomStatistic.WALK_ONE_CM,
++        io.papermc.paper.statistic.CustomStatistic.SPRINT_ONE_CM,
++        io.papermc.paper.statistic.CustomStatistic.CROUCH_ONE_CM,
++        io.papermc.paper.statistic.CustomStatistic.TIME_SINCE_DEATH,
++        io.papermc.paper.statistic.CustomStatistic.SNEAK_TIME,
++        io.papermc.paper.statistic.CustomStatistic.TOTAL_WORLD_TIME,
++        io.papermc.paper.statistic.CustomStatistic.TIME_SINCE_REST,
++        io.papermc.paper.statistic.CustomStatistic.AVIATE_ONE_CM,
++        io.papermc.paper.statistic.CustomStatistic.STRIDER_ONE_CM
++    );
++    // Paper end - better stats api
+     public static Cancellable handleStatisticsIncrease(net.minecraft.world.entity.player.Player entityHuman, net.minecraft.stats.Stat<?> statistic, int current, int newValue) {
+         Player player = ((ServerPlayer) entityHuman).getBukkitEntity();
+         Event event;
+         if (true) {
+-            org.bukkit.Statistic stat = CraftStatistic.getBukkitStatistic(statistic);
+-            if (stat == null) {
+-                System.err.println("Unhandled statistic: " + statistic);
+-                return null;
+-            }
+-            switch (stat) {
+-                case FALL_ONE_CM:
+-                case BOAT_ONE_CM:
+-                case CLIMB_ONE_CM:
+-                case WALK_ON_WATER_ONE_CM:
+-                case WALK_UNDER_WATER_ONE_CM:
+-                case FLY_ONE_CM:
+-                case HORSE_ONE_CM:
+-                case MINECART_ONE_CM:
+-                case PIG_ONE_CM:
+-                case PLAY_ONE_MINUTE:
+-                case SWIM_ONE_CM:
+-                case WALK_ONE_CM:
+-                case SPRINT_ONE_CM:
+-                case CROUCH_ONE_CM:
+-                case TIME_SINCE_DEATH:
+-                case SNEAK_TIME:
+-                case TOTAL_WORLD_TIME:
+-                case TIME_SINCE_REST:
+-                case AVIATE_ONE_CM:
+-                case STRIDER_ONE_CM:
++            // Paper start - better stats api
++            io.papermc.paper.statistic.Statistic<?> stat = io.papermc.paper.statistic.PaperStatistics.getPaperStatistic(statistic);
++            if (stat.value() instanceof io.papermc.paper.statistic.CustomStatistic customStatistic && IGNORED_STATS.contains(customStatistic)) {
+                     // Do not process event for these - too spammy
+                     return null;
+-                default:
+-            }
+-            if (stat.getType() == Type.UNTYPED) {
+-                event = new PlayerStatisticIncrementEvent(player, stat, current, newValue);
+-            } else if (stat.getType() == Type.ENTITY) {
+-                EntityType entityType = CraftStatistic.getEntityTypeFromStatistic((net.minecraft.stats.Stat<net.minecraft.world.entity.EntityType<?>>) statistic);
+-                event = new PlayerStatisticIncrementEvent(player, stat, current, newValue, entityType);
+-            } else {
+-                Material material = CraftStatistic.getMaterialFromStatistic(statistic);
+-                event = new PlayerStatisticIncrementEvent(player, stat, current, newValue, material);
+             }
++            event = new PlayerStatisticIncrementEvent(player, stat, current, newValue);
++            // Paper end - better stats api
+         }
+         entityHuman.level.getCraftServer().getPluginManager().callEvent(event);
+         return (Cancellable) event;
+diff --git a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftCriteria.java b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftCriteria.java
+index d849ef9a51dc901c8045d63218b8ee5fa5c7ee7a..a76df0339a3b83dff01de38fe316d5458f588be8 100644
+--- a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftCriteria.java
++++ b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftCriteria.java
+@@ -8,21 +8,21 @@ import org.bukkit.scoreboard.Criteria;
+ import org.bukkit.scoreboard.RenderType;
+ 
+ public final class CraftCriteria implements Criteria {
+-    static final Map<String, CraftCriteria> DEFAULTS;
++    static final Map<String, Criteria> DEFAULTS; // Paper - stats api
+     static final CraftCriteria DUMMY;
+ 
+     static {
+-        ImmutableMap.Builder<String, CraftCriteria> defaults = ImmutableMap.builder();
++        ImmutableMap.Builder<String, Criteria> defaults = ImmutableMap.builder(); // Paper - stats api
+ 
+         for (Map.Entry<String, ObjectiveCriteria> entry : ObjectiveCriteria.CRITERIA_CACHE.entrySet()) {
+             String name = entry.getKey();
+             ObjectiveCriteria criteria = entry.getValue();
+ 
+-            defaults.put(name, new CraftCriteria(criteria));
++            defaults.put(name, convertFromNms(criteria)); // Paper - stats api
+         }
+ 
+         DEFAULTS = defaults.build();
+-        DUMMY = DEFAULTS.get("dummy");
++        DUMMY = (CraftCriteria) DEFAULTS.get("dummy"); // Paper - stats api
+     }
+ 
+     final ObjectiveCriteria criteria;
+@@ -53,17 +53,23 @@ public final class CraftCriteria implements Criteria {
+         return RenderType.values()[this.criteria.getDefaultRenderType().ordinal()];
+     }
+ 
+-    static CraftCriteria getFromNMS(Objective objective) {
+-        return java.util.Objects.requireNonNullElseGet(CraftCriteria.DEFAULTS.get(objective.getCriteria().getName()), () -> new CraftCriteria(objective.getCriteria())); // Paper
++    static Criteria getFromNMS(Objective objective) { // Paper - stats api
++        return java.util.Objects.requireNonNullElseGet(CraftCriteria.DEFAULTS.get(objective.getCriteria().getName()), () -> convertFromNms(objective.getCriteria())); // Paper
+     }
+ 
+-    public static CraftCriteria getFromBukkit(String name) {
+-        CraftCriteria criteria = CraftCriteria.DEFAULTS.get(name);
++    // Paper start - stats api
++    static Criteria convertFromNms(ObjectiveCriteria criteria) {
++        return criteria instanceof net.minecraft.stats.Stat<?> stat ? io.papermc.paper.statistic.PaperStatistics.getPaperStatistic(stat) : new CraftCriteria(criteria);
++    }
++    // Paper end
 +
-+import net.minecraft.core.Registry;
-+import net.minecraft.resources.ResourceLocation;
-+import net.minecraft.stats.StatType;
-+import org.bukkit.Material;
-+import org.bukkit.craftbukkit.util.CraftNamespacedKey;
-+import org.bukkit.support.AbstractTestingBase;
-+import org.junit.Test;
++    public static Criteria getFromBukkit(String name) { // Paper - stats api
++        Criteria criteria = CraftCriteria.DEFAULTS.get(name); // Paper - stats api
+         if (criteria != null) {
+             return criteria;
+         }
+ 
+-        return ObjectiveCriteria.byName(name).map(CraftCriteria::new).orElseGet(() -> new CraftCriteria(name));
++        return ObjectiveCriteria.byName(name).map(CraftCriteria::convertFromNms).orElseGet(() -> new CraftCriteria(name)); // Paper - stats api
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftObjective.java b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftObjective.java
+index 20b29f78fe56909e02061021b82a84cb7728d8a8..1c1f475c91c95d10b33d66f55fc822950568ba10 100644
+--- a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftObjective.java
++++ b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftObjective.java
+@@ -12,7 +12,7 @@ import org.bukkit.scoreboard.Score;
+ 
+ final class CraftObjective extends CraftScoreboardComponent implements Objective {
+     private final net.minecraft.world.scores.Objective objective;
+-    private final CraftCriteria criteria;
++    private final Criteria criteria; // Paper - stats api
+ 
+     CraftObjective(CraftScoreboard scoreboard, net.minecraft.world.scores.Objective objective) {
+         super(scoreboard);
+@@ -66,7 +66,7 @@ final class CraftObjective extends CraftScoreboardComponent implements Objective
+     public String getCriteria() throws IllegalStateException {
+         CraftScoreboard scoreboard = this.checkState();
+ 
+-        return criteria.bukkitName;
++        return criteria.getName(); // Paper - stats api
+     }
+ 
+     @Override
+@@ -80,7 +80,7 @@ final class CraftObjective extends CraftScoreboardComponent implements Objective
+     public boolean isModifiable() throws IllegalStateException {
+         CraftScoreboard scoreboard = this.checkState();
+ 
+-        return !criteria.criteria.isReadOnly();
++        return !criteria.isReadOnly(); // Paper - stats api
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboard.java b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboard.java
+index fe57437155ff9471738d3b85e787350601b79584..7890566b9afd05564a5bcdaa7223740927d3fbea 100644
+--- a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboard.java
++++ b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboard.java
+@@ -54,12 +54,15 @@ public final class CraftScoreboard implements org.bukkit.scoreboard.Scoreboard {
+         Validate.isTrue(name.length() <= Short.MAX_VALUE, "The name '" + name + "' is longer than the limit of 32767 characters");
+         Validate.isTrue(board.getObjective(name) == null, "An objective of name '" + name + "' already exists");
+         // Paper start - the block comment from the old registerNewObjective didnt cause a conflict when rebasing, so this block wasn't added to the adventure registerNewObjective
+-        if (((CraftCriteria) criteria).criteria != net.minecraft.world.scores.criteria.ObjectiveCriteria.DUMMY && !registeredGlobally) {
++        // Paper start - stats api
++        java.util.Optional<net.minecraft.world.scores.criteria.ObjectiveCriteria> nmsCriteria = net.minecraft.world.scores.criteria.ObjectiveCriteria.byName(criteria.getName());
++        if (nmsCriteria.isPresent() && nmsCriteria.get() != net.minecraft.world.scores.criteria.ObjectiveCriteria.DUMMY && !registeredGlobally) {
++            // Paper end - stats api
+             net.minecraft.server.MinecraftServer.getServer().server.getScoreboardManager().registerScoreboardForVanilla(this);
+             registeredGlobally = true;
+         }
+         // Paper end
+-        net.minecraft.world.scores.Objective objective = board.addObjective(name, ((CraftCriteria) criteria).criteria, io.papermc.paper.adventure.PaperAdventure.asVanilla(displayName), CraftScoreboardTranslations.fromBukkitRender(renderType));
++        net.minecraft.world.scores.Objective objective = board.addObjective(name, nmsCriteria.orElse(net.minecraft.world.scores.criteria.ObjectiveCriteria.DUMMY), io.papermc.paper.adventure.PaperAdventure.asVanilla(displayName), CraftScoreboardTranslations.fromBukkitRender(renderType)); // Paper - stats api
+         return new CraftObjective(this, objective);
+     }
+     // Paper end
+diff --git a/src/test/java/io/papermc/paper/statistic/PaperStatsTest.java b/src/test/java/io/papermc/paper/statistic/PaperStatsTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..505a50d53f10f07d203e49cf049619dbe5bea82b
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/statistic/PaperStatsTest.java
+@@ -0,0 +1,62 @@
++package io.papermc.paper.statistic;
 +
 +import java.util.HashSet;
 +import java.util.Locale;
 +import java.util.Set;
++import net.minecraft.core.registries.BuiltInRegistries;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.stats.StatType;
++import org.bukkit.Material;
++import org.bukkit.Registry;
++import org.bukkit.craftbukkit.util.CraftNamespacedKey;
++import org.bukkit.support.AbstractTestingBase;
++import org.junit.Test;
 +
 +import static org.junit.Assert.assertEquals;
 +import static org.junit.Assert.assertNotNull;
@@ -305,8 +451,8 @@ index 0000000000000000000000000000000000000000..9d1e2200707b007d9e72b3ad25758786
 +    @Test
 +    public void testNMSCustomStatToPaperCustomStat() {
 +        Set<ResourceLocation> missingKeys = new HashSet<>();
-+        for (ResourceLocation minecraftKey : Registry.CUSTOM_STAT) {
-+            if (org.bukkit.Registry.CUSTOM_STATISTICS.get(CraftNamespacedKey.fromMinecraft(minecraftKey)) == null) {
++        for (ResourceLocation minecraftKey : BuiltInRegistries.CUSTOM_STAT) {
++            if (Registry.CUSTOM_STATISTICS.get(CraftNamespacedKey.fromMinecraft(minecraftKey)) == null) {
 +                missingKeys.add(minecraftKey);
 +            }
 +        }
@@ -323,8 +469,8 @@ index 0000000000000000000000000000000000000000..9d1e2200707b007d9e72b3ad25758786
 +    @Test
 +    public void testPaperCustomStatToNMSCustomStat() {
 +        Set<CustomStatistic> extraStats = new HashSet<>();
-+        for (CustomStatistic paperCustomStat : org.bukkit.Registry.CUSTOM_STATISTICS) {
-+            ResourceLocation stat = Registry.CUSTOM_STAT.get(CraftNamespacedKey.toMinecraft(paperCustomStat.getKey()));
++        for (CustomStatistic paperCustomStat : Registry.CUSTOM_STATISTICS) {
++            ResourceLocation stat = BuiltInRegistries.CUSTOM_STAT.get(CraftNamespacedKey.toMinecraft(paperCustomStat.getKey()));
 +            if (stat == null) {
 +                extraStats.add(paperCustomStat);
 +            }
@@ -334,8 +480,8 @@ index 0000000000000000000000000000000000000000..9d1e2200707b007d9e72b3ad25758786
 +
 +    @Test
 +    public void checkAllStatTypes() {
-+        for (StatType<?> stat : Registry.STAT_TYPE) {
-+            assertNotNull(Registry.STAT_TYPE.getKey(stat) + " is missing its paper counterpart", org.bukkit.Registry.STATISTIC_TYPES.get(CraftNamespacedKey.fromMinecraft(Registry.STAT_TYPE.getKey(stat))));
++        for (StatType<?> stat : BuiltInRegistries.STAT_TYPE) {
++            assertNotNull(BuiltInRegistries.STAT_TYPE.getKey(stat) + " is missing its paper counterpart", Registry.STATISTIC_TYPES.get(CraftNamespacedKey.fromMinecraft(BuiltInRegistries.STAT_TYPE.getResourceKey(stat).orElseThrow().location())));
 +        }
 +    }
 +
@@ -345,21 +491,51 @@ index 0000000000000000000000000000000000000000..9d1e2200707b007d9e72b3ad25758786
 +    }
 +}
 diff --git a/src/test/java/io/papermc/paper/world/TranslationKeyTest.java b/src/test/java/io/papermc/paper/world/TranslationKeyTest.java
-index 9292a0119499d14c9ed170999ac3b8dfdd1f839a..1a3f5c27620a24bee40e8003467821055dca7eb6 100644
+index 4cc8ca5dd95e9cccd08ada057a9592a1421f434a..0a1ea8d2f64b7a1405371614cd5198c4f6735879 100644
 --- a/src/test/java/io/papermc/paper/world/TranslationKeyTest.java
 +++ b/src/test/java/io/papermc/paper/world/TranslationKeyTest.java
-@@ -61,6 +61,14 @@ public class TranslationKeyTest extends AbstractTestingBase {
+@@ -1,7 +1,9 @@
+ package io.papermc.paper.world;
+ 
+ import com.destroystokyo.paper.ClientOption;
++import io.papermc.paper.statistic.StatisticType;
+ import java.util.Map;
++import net.minecraft.core.registries.BuiltInRegistries;
+ import net.minecraft.network.chat.contents.TranslatableContents;
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.world.entity.player.ChatVisiblity;
+@@ -12,6 +14,7 @@ import org.bukkit.FireworkEffect;
+ import org.bukkit.GameMode;
+ import org.bukkit.GameRule;
+ import org.bukkit.attribute.Attribute;
++import org.bukkit.craftbukkit.util.CraftNamespacedKey;
+ import org.bukkit.support.AbstractTestingBase;
+ import org.junit.Assert;
+ import org.junit.Ignore;
+@@ -55,6 +58,14 @@ public class TranslationKeyTest extends AbstractTestingBase {
          }
      }
  
 +    @Test
 +    public void testStatType() {
-+        for (io.papermc.paper.statistics.StatisticType<?> statisticType : org.bukkit.Registry.STATISTIC_TYPES) {
-+            if (statisticType == io.papermc.paper.statistics.StatisticType.CUSTOM_STATS) continue;
-+            Assert.assertEquals("translation key mismatch for " + statisticType, Registry.STAT_TYPE.get(org.bukkit.craftbukkit.util.CraftNamespacedKey.toMinecraft(statisticType.getKey())).getTranslationKey(), statisticType.translationKey());
++        for (StatisticType<?> statisticType : org.bukkit.Registry.STATISTIC_TYPES) {
++            if (statisticType == StatisticType.CUSTOM_STATS) continue;
++            Assert.assertEquals("translation key mismatch for " + statisticType, BuiltInRegistries.STAT_TYPE.getOptional(CraftNamespacedKey.toMinecraft(statisticType.getKey())).orElseThrow().getTranslationKey(), statisticType.translationKey());
 +        }
 +    }
 +
      @Test
+     @Ignore // TODO fix
      public void testCreativeCategory() {
-         for (CreativeModeTab tab : CreativeModeTab.TABS) {
+diff --git a/src/test/java/org/bukkit/StatisticsAndAchievementsTest.java b/src/test/java/org/bukkit/StatisticsAndAchievementsTest.java
+index c00bceb80232686169fcd15dd004ed41124bd78a..caa373504f459dbdf6eea13ef64b460636482630 100644
+--- a/src/test/java/org/bukkit/StatisticsAndAchievementsTest.java
++++ b/src/test/java/org/bukkit/StatisticsAndAchievementsTest.java
+@@ -10,6 +10,7 @@ import org.bukkit.entity.EntityType;
+ import org.bukkit.support.AbstractTestingBase;
+ import org.junit.Test;
+ 
++@Deprecated(forRemoval = true) // Paper
+ public class StatisticsAndAchievementsTest extends AbstractTestingBase {
+ 
+     @Test

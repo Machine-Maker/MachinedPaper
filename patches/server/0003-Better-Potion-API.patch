@@ -3,60 +3,49 @@ From: Jake Potrebic <jake.m.potrebic@gmail.com>
 Date: Mon, 16 Aug 2021 16:59:22 -0700
 Subject: [PATCH] Better Potion API
 
+== AT ==
+public net.minecraft.world.item.alchemy.PotionBrewing POTION_MIXES
+public net.minecraft.world.item.alchemy.PotionBrewing$Mix
+public net.minecraft.world.item.alchemy.PotionBrewing$Mix from
+public net.minecraft.world.item.alchemy.PotionBrewing$Mix to
+public net.minecraft.world.entity.projectile.Arrow potion
 
 diff --git a/src/main/java/io/papermc/paper/potion/PaperPotion.java b/src/main/java/io/papermc/paper/potion/PaperPotion.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b947a3513a6faf535342af089294011d2969999c
+index 0000000000000000000000000000000000000000..2de3f34f41f8d36f38dc17b7d13912374f5af051
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/potion/PaperPotion.java
-@@ -0,0 +1,98 @@
+@@ -0,0 +1,111 @@
 +package io.papermc.paper.potion;
 +
-+import com.google.common.base.Preconditions;
-+import com.google.common.collect.Lists;
++import java.util.List;
++import java.util.Objects;
++import net.minecraft.core.registries.BuiltInRegistries;
++import net.minecraft.resources.ResourceKey;
 +import net.minecraft.world.item.alchemy.PotionUtils;
 +import org.bukkit.Color;
 +import org.bukkit.NamespacedKey;
++import org.bukkit.Registry;
 +import org.bukkit.craftbukkit.potion.CraftPotionUtil;
-+import org.bukkit.potion.PotionBrewer;
++import org.bukkit.craftbukkit.util.CraftNamespacedKey;
 +import org.bukkit.potion.PotionEffect;
 +import org.checkerframework.checker.nullness.qual.NonNull;
++import org.checkerframework.checker.nullness.qual.Nullable;
 +import org.checkerframework.framework.qual.DefaultQualifier;
-+
-+import java.util.Collections;
-+import java.util.HashMap;
-+import java.util.List;
-+import java.util.Map;
-+import java.util.Objects;
 +
 +@DefaultQualifier(NonNull.class)
 +public class PaperPotion extends Potion {
 +
-+    private static final Map<net.minecraft.world.item.alchemy.Potion, Potion> NMS_MAP = new HashMap<>();
 +    private final net.minecraft.world.item.alchemy.Potion handle;
 +
-+    public PaperPotion(String id, net.minecraft.world.item.alchemy.Potion handle) {
-+        super(NamespacedKey.minecraft(id));
++    public PaperPotion(final NamespacedKey key, final net.minecraft.world.item.alchemy.Potion handle) {
++        super(key);
 +        this.handle = handle;
-+        NMS_MAP.put(handle, this);
-+    }
-+
-+    public static void registerPotion(PaperPotion potion) {
-+        if (Potion.BY_KEY.containsKey(potion.getKey())) {
-+            throw new IllegalArgumentException("Cannot set already-set potion");
-+        }
-+
-+        Potion.BY_KEY.put(potion.getKey(), potion);
-+    }
-+
-+    public static void setPotionBrewer(PotionBrewer other) {
-+        Preconditions.checkArgument(Potion.brewer == null, "PotionBrewer can only be set once, and internally");
-+        Potion.brewer = other;
 +    }
 +
 +    @Override
 +    public List<PotionEffect> getEffects() {
-+        return Collections.unmodifiableList(Lists.transform(this.handle.getEffects(), CraftPotionUtil::toBukkit));
++        return this.handle.getEffects().stream().map(CraftPotionUtil::toBukkit).toList();
 +    }
 +
 +    @Override
@@ -89,36 +78,67 @@ index 0000000000000000000000000000000000000000..b947a3513a6faf535342af089294011d
 +        return PaperPotionUtil.EXTENDABLES.containsValue(this.handle);
 +    }
 +
++    @Override
++    public boolean equals(final @Nullable Object o) {
++        if (this == o) return true;
++        if (o == null || getClass() != o.getClass()) return false;
++        final PaperPotion that = (PaperPotion) o;
++        return handle.equals(that.handle);
++    }
++
++    @Override
++    public int hashCode() {
++        return Objects.hash(handle);
++    }
++
++    @Override
++    public String toString() {
++        return "Potion{" +
++            "key=" + this.key() +
++            "}";
++    }
++
 +    public static net.minecraft.world.item.alchemy.Potion getHandle(Potion potion) {
-+        if (potion instanceof PotionWrapper wrapper) {
-+            potion = wrapper.getPotion();
-+        }
 +        if (potion instanceof PaperPotion paperPotion) {
 +            return paperPotion.handle;
 +        }
 +        throw new IllegalArgumentException(potion + " couldn't be converted to an nms Potion");
 +    }
 +
-+    public static Potion getFromNms(net.minecraft.world.item.alchemy.Potion potion) {
-+        return Objects.requireNonNull(NMS_MAP.get(potion));
++    public static Potion parseFromString(final String input) {
++        final NamespacedKey key = Objects.requireNonNull(NamespacedKey.fromString(input), () -> input + " could not be parsed into a key");
++        return Objects.requireNonNull(Registry.POTION.get(key), () -> "No potion found with key " + key);
 +    }
 +
-+    @SuppressWarnings("deprecation")
++    public static net.minecraft.world.item.alchemy.Potion toMinecraft(final Potion potion) {
++        return ((PaperPotion) potion).handle;
++    }
++
++    public static Potion toApi(final net.minecraft.world.item.alchemy.Potion nms) {
++        return BuiltInRegistries.POTION.getResourceKey(nms)
++            .map(ResourceKey::location)
++            .map(CraftNamespacedKey::fromMinecraft)
++            .map(Registry.POTION::get)
++            .orElseThrow();
++    }
++
++    @Deprecated
 +    public static Potion fromLegacy(org.bukkit.potion.PotionData legacyPotionData) {
-+        return Objects.requireNonNull(Potion.getByKey(NamespacedKey.fromString(CraftPotionUtil.fromBukkit(legacyPotionData))), () -> legacyPotionData + " could not be converted into a modern paper Potion instance");
++        return Objects.requireNonNull(Registry.POTION.get(Objects.requireNonNull(NamespacedKey.fromString(CraftPotionUtil.fromBukkit(legacyPotionData)), () -> "Could not create key from %s".formatted(legacyPotionData))), () -> "Could not get a potion from %s".formatted(legacyPotionData));
 +    }
 +}
 diff --git a/src/main/java/io/papermc/paper/potion/PaperPotionUtil.java b/src/main/java/io/papermc/paper/potion/PaperPotionUtil.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2ba5ded8a8cde85b92607c0e2786cf06f4453c2e
+index 0000000000000000000000000000000000000000..e55ea1f83b2ba520e27a175a89f57e88c6b95f3e
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/potion/PaperPotionUtil.java
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,50 @@
 +package io.papermc.paper.potion;
 +
 +import com.google.common.collect.BiMap;
 +import com.google.common.collect.ImmutableBiMap;
 +import net.minecraft.core.Registry;
++import net.minecraft.core.registries.BuiltInRegistries;
 +import net.minecraft.world.effect.MobEffectInstance;
 +import net.minecraft.world.item.alchemy.Potion;
 +import net.minecraft.world.item.alchemy.PotionBrewing;
@@ -134,7 +154,7 @@ index 0000000000000000000000000000000000000000..2ba5ded8a8cde85b92607c0e2786cf06
 +    static {
 +        final ImmutableBiMap.Builder<Potion, Potion> extendables = ImmutableBiMap.builder();
 +        final ImmutableBiMap.Builder<Potion, Potion> upgradeables = ImmutableBiMap.builder();
-+        for (Potion input : Registry.POTION) {
++        for (Potion input : BuiltInRegistries.POTION) {
 +            for (PotionBrewing.Mix<Potion> mix : PotionBrewing.POTION_MIXES) {
 +                if (mix.from == input && input.getName("").equals(mix.to.getName(""))) {
 +                    ImmutableBiMap.Builder<Potion, Potion> toAddTo = null;
@@ -164,13 +184,13 @@ index 0000000000000000000000000000000000000000..2ba5ded8a8cde85b92607c0e2786cf06
 +    }
 +}
 diff --git a/src/main/java/net/minecraft/world/entity/projectile/Arrow.java b/src/main/java/net/minecraft/world/entity/projectile/Arrow.java
-index 29e97cfec599e19eb85b81e49c997b562c8d3a6b..14d706bc3d2e03f75c10c2bd9907ce48451d8290 100644
+index 9c20f111659166f260ce9b7bf60ae7b6ebfd565a..1a9fb3383f8df2238dd193d0f3930d110e822807 100644
 --- a/src/main/java/net/minecraft/world/entity/projectile/Arrow.java
 +++ b/src/main/java/net/minecraft/world/entity/projectile/Arrow.java
 @@ -153,6 +153,12 @@ public class Arrow extends AbstractArrow {
  
      public void setPotionType(String string) {
-         this.potion = Registry.POTION.get(new net.minecraft.resources.ResourceLocation(string));
+         this.potion = BuiltInRegistries.POTION.get(new net.minecraft.resources.ResourceLocation(string));
 +        // Paper start
 +        this.setPotionType(this.potion);
 +    }
@@ -180,23 +200,11 @@ index 29e97cfec599e19eb85b81e49c997b562c8d3a6b..14d706bc3d2e03f75c10c2bd9907ce48
          this.getEntityData().set(Arrow.ID_EFFECT_COLOR, PotionUtils.getColor((Collection) PotionUtils.getAllEffects(this.potion, (Collection) this.effects)));
      }
  
-diff --git a/src/main/java/net/minecraft/world/item/alchemy/Potions.java b/src/main/java/net/minecraft/world/item/alchemy/Potions.java
-index 725663a7602b8926a176565e0bacf1ad10e42af1..82f66bc853a81034fad0c9bc46f2daec356ff85a 100644
---- a/src/main/java/net/minecraft/world/item/alchemy/Potions.java
-+++ b/src/main/java/net/minecraft/world/item/alchemy/Potions.java
-@@ -50,6 +50,7 @@ public class Potions {
-     public static final Potion LONG_SLOW_FALLING = register("long_slow_falling", new Potion("slow_falling", new MobEffectInstance(MobEffects.SLOW_FALLING, 4800)));
- 
-     private static Potion register(String name, Potion potion) {
-+        io.papermc.paper.potion.PaperPotion.registerPotion(new io.papermc.paper.potion.PaperPotion(name, potion)); // Paper
-         return Registry.register(Registry.POTION, name, potion);
-     }
- }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java b/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java
-index 62bca85da6c5d9877e21fecb702370506ddf671c..2aa960487c62de3a42236da6448c3fc38b11c3f3 100644
+index 09be3f188f9710fa71c5db67023e654739721f21..0c0443d09f974da240af71fc870fc5d8f4a1d042 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java
-@@ -582,7 +582,7 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
+@@ -586,7 +586,7 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
              } else if (AbstractArrow.class.isAssignableFrom(clazz)) {
                  if (TippedArrow.class.isAssignableFrom(clazz)) {
                      entity = net.minecraft.world.entity.EntityType.ARROW.create(world);
@@ -205,23 +213,27 @@ index 62bca85da6c5d9877e21fecb702370506ddf671c..2aa960487c62de3a42236da6448c3fc3
                  } else if (SpectralArrow.class.isAssignableFrom(clazz)) {
                      entity = net.minecraft.world.entity.EntityType.SPECTRAL_ARROW.create(world);
                  } else if (Trident.class.isAssignableFrom(clazz)) {
-diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index cda09b11acc7bf9afdc4fa3344c6852abb297ca9..dd57467d47f4d59971800e32d94ff185331c513a 100644
---- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-+++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -313,6 +313,7 @@ public final class CraftServer implements Server {
-         org.bukkit.enchantments.Enchantment.stopAcceptingRegistrations();
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftRegistry.java b/src/main/java/org/bukkit/craftbukkit/CraftRegistry.java
+index 34888b525fd35ac64e6e5e66036ad965a6769959..23810729aff3d0bcda196bd543725a6b9a34192b 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftRegistry.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftRegistry.java
+@@ -32,6 +32,11 @@ public class CraftRegistry<B extends Keyed, M> implements Registry<B> {
+             return new io.papermc.paper.world.structure.PaperConfiguredStructure.LegacyRegistry(registryHolder.registryOrThrow(Registries.STRUCTURE));
+         }
+         // Paper end
++        // Paper start
++        if (bukkitClass == io.papermc.paper.potion.Potion.class) {
++            return new org.bukkit.craftbukkit.CraftRegistry<>(BuiltInRegistries.POTION, io.papermc.paper.potion.PaperPotion::new);
++        }
++        // Paper end
  
-         Potion.setPotionBrewer(potionBrewer); // Paper
-+        io.papermc.paper.potion.PaperPotion.setPotionBrewer(this.potionBrewer); // Paper
-         MobEffects.BLINDNESS.getClass();
-         PotionEffectType.stopAcceptingRegistrations();
-         // Ugly hack :(
+         return null;
+     }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 81ab184cb5235913ef43ae4d7f1ac82bce927519..71c00e7a60ac0dad4d5b7157abf8e3143812fcf4 100644
+index c91bac6f3f1d60c950b93d157531cd8f7500e8d8..c10edee4b8f07ac75d0fbb301c51688bb01d3242 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-@@ -733,7 +733,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -732,7 +732,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
          net.minecraft.world.entity.projectile.AbstractArrow arrow;
          if (TippedArrow.class.isAssignableFrom(clazz)) {
              arrow = EntityType.ARROW.create(world);
@@ -231,7 +243,7 @@ index 81ab184cb5235913ef43ae4d7f1ac82bce927519..71c00e7a60ac0dad4d5b7157abf8e314
              arrow = EntityType.SPECTRAL_ARROW.create(world);
          } else if (Trident.class.isAssignableFrom(clazz)) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftAreaEffectCloud.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftAreaEffectCloud.java
-index fec308cbc8fb27036301fe27a1169ac7368f9732..57468860b7824a48eadc4d177b161d54ca736520 100644
+index fec308cbc8fb27036301fe27a1169ac7368f9732..51ed5bda1ca4a2bebf876998c49a931575df90c1 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftAreaEffectCloud.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftAreaEffectCloud.java
 @@ -212,6 +212,18 @@ public class CraftAreaEffectCloud extends CraftEntity implements AreaEffectCloud
@@ -241,12 +253,12 @@ index fec308cbc8fb27036301fe27a1169ac7368f9732..57468860b7824a48eadc4d177b161d54
 +    // Paper start
 +    @Override
 +    public void setBasePotion(io.papermc.paper.potion.Potion potion) {
-+        this.getHandle().setPotion(io.papermc.paper.potion.PaperPotion.getHandle(potion));
++        this.getHandle().setPotion(io.papermc.paper.potion.PaperPotion.toMinecraft(potion));
 +    }
 +
 +    @Override
 +    public io.papermc.paper.potion.Potion getBasePotion() {
-+        return io.papermc.paper.potion.PaperPotion.getFromNms(this.getHandle().getPotion());
++        return io.papermc.paper.potion.PaperPotion.toApi(this.getHandle().getPotion());
 +    }
 +    // Paper end
 +
@@ -254,10 +266,10 @@ index fec308cbc8fb27036301fe27a1169ac7368f9732..57468860b7824a48eadc4d177b161d54
      public ProjectileSource getSource() {
          net.minecraft.world.entity.LivingEntity source = this.getHandle().getOwner();
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java
-index 76ee8adfb6cccc15dde748b0796d1de7fc5507f8..b24cdb064d878852b0747cf270dd3a096f15afd5 100644
+index 2cff68a5c448c0e971d95e9264223eb943730968..b24efac89a96cbf7dd3b2ee888d1c1e73061e3d4 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java
-@@ -508,7 +508,7 @@ public class CraftLivingEntity extends CraftEntity implements LivingEntity {
+@@ -525,7 +525,7 @@ public class CraftLivingEntity extends CraftEntity implements LivingEntity {
          } else if (AbstractArrow.class.isAssignableFrom(projectile)) {
              if (TippedArrow.class.isAssignableFrom(projectile)) {
                  launch = new Arrow(world, this.getHandle());
@@ -267,7 +279,7 @@ index 76ee8adfb6cccc15dde748b0796d1de7fc5507f8..b24cdb064d878852b0747cf270dd3a09
                  launch = new net.minecraft.world.entity.projectile.SpectralArrow(world, this.getHandle());
              } else if (Trident.class.isAssignableFrom(projectile)) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftTippedArrow.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftTippedArrow.java
-index 0068f0b3a5f8d53ff91f16b3fe18a4c8cbefc9d7..8f99b8d1372ac392fb7fa640c012c870fd9b800e 100644
+index 0068f0b3a5f8d53ff91f16b3fe18a4c8cbefc9d7..d8d9c965d430a4a169181ed5c980487526a29b7c 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftTippedArrow.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftTippedArrow.java
 @@ -113,6 +113,18 @@ public class CraftTippedArrow extends CraftArrow implements Arrow {
@@ -277,12 +289,12 @@ index 0068f0b3a5f8d53ff91f16b3fe18a4c8cbefc9d7..8f99b8d1372ac392fb7fa640c012c870
 +    // Paper start
 +    @Override
 +    public void setBasePotion(io.papermc.paper.potion.Potion potion) {
-+        this.getHandle().setPotionType(io.papermc.paper.potion.PaperPotion.getHandle(potion));
++        this.getHandle().setPotionType(io.papermc.paper.potion.PaperPotion.toMinecraft(potion));
 +    }
 +
 +    @Override
 +    public io.papermc.paper.potion.Potion getBasePotion() {
-+        return io.papermc.paper.potion.PaperPotion.getFromNms(this.getHandle().potion);
++        return io.papermc.paper.potion.PaperPotion.toApi(this.getHandle().potion);
 +    }
 +    // Paper end
 +
@@ -290,7 +302,7 @@ index 0068f0b3a5f8d53ff91f16b3fe18a4c8cbefc9d7..8f99b8d1372ac392fb7fa640c012c870
      public void setColor(Color color) {
          int colorRGB = (color == null) ? -1 : color.asRGB();
 diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaPotion.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaPotion.java
-index 298326115f048bb79e3c949861c187134eb5efb8..861670527c36d51b7ad518ef8fd637b1703d023b 100644
+index 298326115f048bb79e3c949861c187134eb5efb8..a0b5668427db66ded07d39e62e4474063706454a 100644
 --- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaPotion.java
 +++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaPotion.java
 @@ -45,7 +45,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
@@ -298,7 +310,7 @@ index 298326115f048bb79e3c949861c187134eb5efb8..861670527c36d51b7ad518ef8fd637b1
      // Having an initial "state" in ItemMeta seems bit dirty but the UNCRAFTABLE potion type
      // is treated as the empty form of the meta because it represents an empty potion with no effect
 -    private PotionData type = new PotionData(PotionType.UNCRAFTABLE, false, false);
-+    private io.papermc.paper.potion.Potion type = io.papermc.paper.potion.Potion.EMPTY; // Paper
++    private io.papermc.paper.potion.Potion type = io.papermc.paper.potion.Potion.EMPTY.value(); // Paper
      private List<PotionEffect> customEffects;
      private Color color;
  
@@ -307,7 +319,7 @@ index 298326115f048bb79e3c949861c187134eb5efb8..861670527c36d51b7ad518ef8fd637b1
          super(tag);
          if (tag.contains(DEFAULT_POTION.NBT)) {
 -            this.type = CraftPotionUtil.toBukkit(tag.getString(DEFAULT_POTION.NBT));
-+            this.type = io.papermc.paper.potion.Potion.getByKey(org.bukkit.NamespacedKey.fromString(tag.getString(DEFAULT_POTION.NBT))); // Paper
++            this.type = io.papermc.paper.potion.PaperPotion.parseFromString(tag.getString(DEFAULT_POTION.NBT)); // Paper
          }
          if (tag.contains(POTION_COLOR.NBT)) {
              try {
@@ -316,7 +328,7 @@ index 298326115f048bb79e3c949861c187134eb5efb8..861670527c36d51b7ad518ef8fd637b1
      CraftMetaPotion(Map<String, Object> map) {
          super(map);
 -        this.type = CraftPotionUtil.toBukkit(SerializableMeta.getString(map, DEFAULT_POTION.BUKKIT, true));
-+        this.type = io.papermc.paper.potion.Potion.getByKey(org.bukkit.NamespacedKey.fromString(SerializableMeta.getString(map, DEFAULT_POTION.BUKKIT, true))); // Paper - improved Potion API
++        this.type = io.papermc.paper.potion.PaperPotion.parseFromString(CraftMetaItem.SerializableMeta.getString(map, DEFAULT_POTION.BUKKIT, true)); // Paper - improved Potion API
  
          Color color = SerializableMeta.getObject(Color.class, map, POTION_COLOR.BUKKIT, true);
          if (color != null) {
@@ -334,7 +346,7 @@ index 298326115f048bb79e3c949861c187134eb5efb8..861670527c36d51b7ad518ef8fd637b1
  
      boolean isPotionEmpty() {
 -        return (this.type.getType() == PotionType.UNCRAFTABLE) && !(this.hasCustomEffects() || this.hasColor());
-+        return (this.type == io.papermc.paper.potion.Potion.EMPTY) && !(this.hasCustomEffects() || this.hasColor()); // Paper - improved Potion API
++        return (this.type == io.papermc.paper.potion.Potion.EMPTY.value()) && !(this.hasCustomEffects() || this.hasColor()); // Paper - improved Potion API
      }
  
      @Override
@@ -368,7 +380,7 @@ index 298326115f048bb79e3c949861c187134eb5efb8..861670527c36d51b7ad518ef8fd637b1
          final int original;
          int hash = original = super.applyHash();
 -        if (this.type.getType() != PotionType.UNCRAFTABLE) {
-+        if (this.type != io.papermc.paper.potion.Potion.EMPTY) { // Paper - improved Potion API
++        if (this.type != io.papermc.paper.potion.Potion.EMPTY.value()) { // Paper - improved Potion API
              hash = 73 * hash + this.type.hashCode();
          }
          if (this.hasColor()) {
@@ -379,45 +391,12 @@ index 298326115f048bb79e3c949861c187134eb5efb8..861670527c36d51b7ad518ef8fd637b1
 -        if (this.type.getType() != PotionType.UNCRAFTABLE) {
 -            builder.put(DEFAULT_POTION.BUKKIT, CraftPotionUtil.fromBukkit(type));
 +        // Paper start - improved Potion API
-+        if (this.type != io.papermc.paper.potion.Potion.EMPTY) {
++        if (this.type != io.papermc.paper.potion.Potion.EMPTY.value()) {
 +            builder.put(DEFAULT_POTION.BUKKIT, this.type.getKey().toString());
 +        // Paper end - improved Potion API
          }
  
          if (this.hasColor()) {
-diff --git a/src/main/java/org/bukkit/craftbukkit/potion/CraftPotionBrewer.java b/src/main/java/org/bukkit/craftbukkit/potion/CraftPotionBrewer.java
-index a0b0c64b819b8f713eeea78210e276664e30e66e..b03cb9fb1ef85f0659999ce0f7170223bd0dc94d 100644
---- a/src/main/java/org/bukkit/craftbukkit/potion/CraftPotionBrewer.java
-+++ b/src/main/java/org/bukkit/craftbukkit/potion/CraftPotionBrewer.java
-@@ -49,8 +49,27 @@ public class CraftPotionBrewer implements PotionBrewer {
-     public PotionEffect createEffect(PotionEffectType potion, int duration, int amplifier) {
-         return new PotionEffect(potion, potion.isInstant() ? 1 : (int) (duration * potion.getDurationModifier()), amplifier);
-     }
--
-     // Paper start
-+    @Override
-+    public boolean isIngredient(org.bukkit.inventory.ItemStack itemStack) {
-+        return net.minecraft.world.item.alchemy.PotionBrewing.isIngredient(org.bukkit.craftbukkit.inventory.CraftItemStack.asNMSCopy(itemStack));
-+    }
-+
-+    @Override
-+    public boolean isPotionContainerIngredient(org.bukkit.inventory.ItemStack itemStack) {
-+        return net.minecraft.world.item.alchemy.PotionBrewing.isContainerIngredient(org.bukkit.craftbukkit.inventory.CraftItemStack.asNMSCopy(itemStack));
-+    }
-+
-+    @Override
-+    public boolean isPotionIngredient(org.bukkit.inventory.ItemStack itemStack) {
-+        return net.minecraft.world.item.alchemy.PotionBrewing.isPotionIngredient(org.bukkit.craftbukkit.inventory.CraftItemStack.asNMSCopy(itemStack));
-+    }
-+
-+    @Override
-+    public boolean isBrewablePotion(io.papermc.paper.potion.Potion potion) {
-+        return net.minecraft.world.item.alchemy.PotionBrewing.isBrewablePotion(io.papermc.paper.potion.PaperPotion.getHandle(potion));
-+    }
-+
-     @Override
-     public void addPotionMix(io.papermc.paper.potion.PotionMix potionMix) {
-         net.minecraft.world.item.alchemy.PotionBrewing.addPotionMix(potionMix);
 diff --git a/src/main/java/org/bukkit/craftbukkit/potion/CraftPotionUtil.java b/src/main/java/org/bukkit/craftbukkit/potion/CraftPotionUtil.java
 index acb69821a99aa69bce6d127e10976089c85be223..b73f6ce5e59407fd47e5c97c5e5cbff36a7814cf 100644
 --- a/src/main/java/org/bukkit/craftbukkit/potion/CraftPotionUtil.java
@@ -453,14 +432,15 @@ index 2afb7af0a90959edd3b0ead2fe4d9018b5560aa4..d437a7e67a7f6b2bdabd9b966d44880a
              } else {
 diff --git a/src/test/java/io/papermc/paper/potion/PaperPotionTest.java b/src/test/java/io/papermc/paper/potion/PaperPotionTest.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5080f9fe4d2cf28d2329613cfbe837842f346b06
+index 0000000000000000000000000000000000000000..82f48919a85541678111031ef118bc8b512bda12
 --- /dev/null
 +++ b/src/test/java/io/papermc/paper/potion/PaperPotionTest.java
-@@ -0,0 +1,27 @@
+@@ -0,0 +1,28 @@
 +package io.papermc.paper.potion;
 +
-+import net.minecraft.core.Registry;
++import net.minecraft.core.registries.BuiltInRegistries;
 +import net.minecraft.resources.ResourceLocation;
++import org.bukkit.Registry;
 +import org.bukkit.craftbukkit.util.CraftNamespacedKey;
 +import org.bukkit.support.AbstractTestingBase;
 +import org.junit.Test;
@@ -472,15 +452,34 @@ index 0000000000000000000000000000000000000000..5080f9fe4d2cf28d2329613cfbe83784
 +
 +    @Test
 +    public void testPaperPotionToNms() {
-+        for (Potion value : Potion.values()) {
-+            assertTrue(value.getKey() + " does not have an NMS equivalent", Registry.POTION.containsKey(CraftNamespacedKey.toMinecraft(value.getKey())));
++        for (Potion value : Registry.POTION) {
++            assertTrue(value.getKey() + " does not have an NMS equivalent", BuiltInRegistries.POTION.containsKey(CraftNamespacedKey.toMinecraft(value.getKey())));
 +        }
 +    }
 +
 +    @Test
 +    public void testNmsToPaperPotion() {
-+        for (ResourceLocation location : Registry.POTION.keySet()) {
-+            assertNotNull(location + " does not have an API equivalent", Potion.getByKey(CraftNamespacedKey.fromMinecraft(location)));
++        for (ResourceLocation location : BuiltInRegistries.POTION.keySet()) {
++            assertNotNull(location + " does not have an API equivalent", Registry.POTION.get(CraftNamespacedKey.fromMinecraft(location)));
 +        }
 +    }
 +}
+diff --git a/src/test/java/io/papermc/paper/testing/LazyRegistry.java b/src/test/java/io/papermc/paper/testing/LazyRegistry.java
+index 8dd0df8c2cc25d37a2590a07872682230a9335f2..2d957b44c8ffbe0a83cddd60da87e1753c3faeed 100644
+--- a/src/test/java/io/papermc/paper/testing/LazyRegistry.java
++++ b/src/test/java/io/papermc/paper/testing/LazyRegistry.java
+@@ -7,9 +7,14 @@ import org.bukkit.NamespacedKey;
+ import org.bukkit.Registry;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
++import oshi.util.Memoizer;
+ 
+ public record LazyRegistry(Supplier<Registry<Keyed>> supplier) implements Registry<Keyed> {
+ 
++    public LazyRegistry {
++        supplier = Memoizer.memoize(supplier);
++    }
++
+     @NotNull
+     @Override
+     public Iterator<Keyed> iterator() {
