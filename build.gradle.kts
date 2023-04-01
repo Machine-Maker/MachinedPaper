@@ -64,7 +64,7 @@ paperweight {
             apiOutputDir.set(layout.projectDirectory.dir("machinedpaper-api"))
 
             serverPatchDir.set(layout.projectDirectory.dir("patches/server"))
-            serverOutputDir.set(layout.projectDirectory.dir("machinedpaper-Server"))
+            serverOutputDir.set(layout.projectDirectory.dir("machinedpaper-server"))
         }
     }
 }

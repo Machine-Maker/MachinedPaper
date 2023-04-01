@@ -46,7 +46,7 @@ out/
 # other stuff
 run/
 
-MachinedPaper-Server
-MachinedPaper-API
+machinedpaper-server/
+machinedpaper-api/
 
 !gradle/wrapper/gradle-wrapper.jar
