@@ -184,7 +184,7 @@ index 0000000000000000000000000000000000000000..e55ea1f83b2ba520e27a175a89f57e88
 +    }
 +}
 diff --git a/src/main/java/net/minecraft/world/entity/projectile/Arrow.java b/src/main/java/net/minecraft/world/entity/projectile/Arrow.java
-index 9c20f111659166f260ce9b7bf60ae7b6ebfd565a..1a9fb3383f8df2238dd193d0f3930d110e822807 100644
+index 2b1228f10461f290b791e937c1c5af0d6011c998..7cc651fb0447eace98280a74d51e4222443f9c95 100644
 --- a/src/main/java/net/minecraft/world/entity/projectile/Arrow.java
 +++ b/src/main/java/net/minecraft/world/entity/projectile/Arrow.java
 @@ -153,6 +153,12 @@ public class Arrow extends AbstractArrow {
@@ -201,10 +201,10 @@ index 9c20f111659166f260ce9b7bf60ae7b6ebfd565a..1a9fb3383f8df2238dd193d0f3930d11
      }
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java b/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java
-index 09be3f188f9710fa71c5db67023e654739721f21..0c0443d09f974da240af71fc870fc5d8f4a1d042 100644
+index ef25a0ae25e1f1f7c5bee64b9e60b17eb998ced6..818be05660f4ecfed4d65ca2daa42872e7a86989 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java
-@@ -586,7 +586,7 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
+@@ -594,7 +594,7 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
              } else if (AbstractArrow.class.isAssignableFrom(clazz)) {
                  if (TippedArrow.class.isAssignableFrom(clazz)) {
                      entity = net.minecraft.world.entity.EntityType.ARROW.create(world);
@@ -230,7 +230,7 @@ index 34888b525fd35ac64e6e5e66036ad965a6769959..23810729aff3d0bcda196bd543725a6b
          return null;
      }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index c91bac6f3f1d60c950b93d157531cd8f7500e8d8..c10edee4b8f07ac75d0fbb301c51688bb01d3242 100644
+index 5e9055fdf411029ea2fed91acd6b981f79156418..1d8c45cfadffeac828c3dde876fe4e0b992c70ed 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 @@ -732,7 +732,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
@@ -266,7 +266,7 @@ index fec308cbc8fb27036301fe27a1169ac7368f9732..51ed5bda1ca4a2bebf876998c49a9315
      public ProjectileSource getSource() {
          net.minecraft.world.entity.LivingEntity source = this.getHandle().getOwner();
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java
-index 2cff68a5c448c0e971d95e9264223eb943730968..b24efac89a96cbf7dd3b2ee888d1c1e73061e3d4 100644
+index aec588b41f19b2147a4e7267bafa417fbcf7abc0..f5ac3406f84a9c6ffdbd032e099558b473400b4c 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java
 @@ -525,7 +525,7 @@ public class CraftLivingEntity extends CraftEntity implements LivingEntity {
@@ -302,7 +302,7 @@ index 0068f0b3a5f8d53ff91f16b3fe18a4c8cbefc9d7..d8d9c965d430a4a169181ed5c9804875
      public void setColor(Color color) {
          int colorRGB = (color == null) ? -1 : color.asRGB();
 diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaPotion.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaPotion.java
-index 298326115f048bb79e3c949861c187134eb5efb8..a0b5668427db66ded07d39e62e4474063706454a 100644
+index 0d4348ce1c4ec9bb779eaebf8606ea578f17d2cb..e929509d6e6c829bec0571355b0ed27567f5d31b 100644
 --- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaPotion.java
 +++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaPotion.java
 @@ -45,7 +45,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {

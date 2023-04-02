@@ -106,10 +106,10 @@ index 0000000000000000000000000000000000000000..37f49a5959adeb8ce7dafad45ea7881a
 +    }
 +}
 diff --git a/src/main/java/net/minecraft/stats/ServerStatsCounter.java b/src/main/java/net/minecraft/stats/ServerStatsCounter.java
-index 72946e324c575ef39f3939225b96b68f724da460..d45dc0022e667a6ea100f293a775b58dfc7e09e3 100644
+index 9501e5f25f5c4d3069e554d4dc82b0e094156682..67a719de205f0eed13ef200fe45da4b5410b0337 100644
 --- a/src/main/java/net/minecraft/stats/ServerStatsCounter.java
 +++ b/src/main/java/net/minecraft/stats/ServerStatsCounter.java
-@@ -248,6 +248,20 @@ public class ServerStatsCounter extends StatsCounter {
+@@ -244,6 +244,20 @@ public class ServerStatsCounter extends StatsCounter {
  
              object2intmap.put(statistic, this.getValue(statistic));
          }
@@ -196,10 +196,10 @@ index 64ac41008c6f4367d7a3f20ccb181605ff3cd8da..f2b13a2beec9934c15e9a01758495495
      DAMAGE_DEALT(Stats.DAMAGE_DEALT),
      DAMAGE_TAKEN(Stats.DAMAGE_TAKEN),
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index c33e92cee1291c0ca1863fa8f33cd3b1c5449e92..7d37f634aa86a7de63a00cd0a11d7ca458e37b74 100644
+index 0ae1fce0c1a2e3bfbbab756a088fc76545e263fa..5eb8c940cf695e24c7580be14ef7c1a8189b43c7 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-@@ -1450,6 +1450,27 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+@@ -1479,6 +1479,27 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
          return bukkitRecipeKeys.build();
      }
  
@@ -228,10 +228,10 @@ index c33e92cee1291c0ca1863fa8f33cd3b1c5449e92..7d37f634aa86a7de63a00cd0a11d7ca4
      public void incrementStatistic(Statistic statistic) {
          CraftStatistic.incrementStatistic(this.getHandle().getStats(), statistic);
 diff --git a/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java b/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java
-index 6a52ae70b5f7fd9953b6b2605cae722f606e7fec..90d09b6168ca9d987e679d656c3672a04a2f12cb 100644
+index cdb8ec04f4a19ec3dbedbd5b17a7d1f3afaa238e..707dfcb2c4f519e683d774671352e0262540d8ed 100644
 --- a/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java
 +++ b/src/main/java/org/bukkit/craftbukkit/event/CraftEventFactory.java
-@@ -1592,49 +1592,42 @@ public class CraftEventFactory {
+@@ -1598,49 +1598,42 @@ public class CraftEventFactory {
          return !event.isCancelled();
      }
  

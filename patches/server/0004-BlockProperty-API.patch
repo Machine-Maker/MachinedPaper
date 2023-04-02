@@ -5,10 +5,10 @@ Subject: [PATCH] BlockProperty API
 
 
 diff --git a/src/main/java/net/minecraft/world/level/block/state/properties/Property.java b/src/main/java/net/minecraft/world/level/block/state/properties/Property.java
-index f923593bd336dd1a950ba61603d53edb3c9703eb..180700cdb19c0837e6dcb6b9e3e213340dc15063 100644
+index 9d4faa3da8d62028074ce25f4a728e9ba5281428..e83055aaecffebc01fe388f67936f9bcd5acf693 100644
 --- a/src/main/java/net/minecraft/world/level/block/state/properties/Property.java
 +++ b/src/main/java/net/minecraft/world/level/block/state/properties/Property.java
-@@ -32,10 +32,12 @@ public abstract class Property<T extends Comparable<T>> {
+@@ -34,10 +34,12 @@ public abstract class Property<T extends Comparable<T>> {
  
      public abstract int getIdFor(final T value);
      // Paper end - optimise state lookup
@@ -22,7 +22,7 @@ index f923593bd336dd1a950ba61603d53edb3c9703eb..180700cdb19c0837e6dcb6b9e3e21334
  
      public Property.Value<T> value(T value) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java b/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java
-index 0a04366b3f472bc4ce20ed814dc326b278119c74..05606d6c529cb4f2a49a536784df070a188e14e2 100644
+index d70541cf10674aeb7581043d09269793f109e657..78551c8fe4e73b809710e296dba546a8f29be410 100644
 --- a/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java
 +++ b/src/main/java/org/bukkit/craftbukkit/block/data/CraftBlockData.java
 @@ -5,6 +5,7 @@ import com.google.common.base.Preconditions;
@@ -49,7 +49,7 @@ index 0a04366b3f472bc4ce20ed814dc326b278119c74..05606d6c529cb4f2a49a536784df070a
  
      static {
          //<editor-fold desc="CraftBlockData Registration" defaultstate="collapsed">
-@@ -506,8 +509,153 @@ public class CraftBlockData implements BlockData {
+@@ -511,8 +514,153 @@ public class CraftBlockData implements BlockData {
          register(net.minecraft.world.level.block.piston.PistonHeadBlock.class, org.bukkit.craftbukkit.block.impl.CraftPistonExtension::new);
          register(net.minecraft.world.level.block.piston.MovingPistonBlock.class, org.bukkit.craftbukkit.block.impl.CraftPistonMoving::new);
          //</editor-fold>
@@ -204,10 +204,10 @@ index 0a04366b3f472bc4ce20ed814dc326b278119c74..05606d6c529cb4f2a49a536784df070a
          Preconditions.checkState(CraftBlockData.MAP.put(nms, bukkit) == null, "Duplicate mapping %s->%s", nms, bukkit);
      }
 diff --git a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
-index 1244c1ca5e0907298b1ca6de538db82b2209ec4d..2a06467161c5d10209bd65cb3da49584d1f34d54 100644
+index 64c50c52c11214740de7903e5592b8b6b2c170b3..2c1e425d2a98fceaca2f8a8eb12e811d85f3612e 100644
 --- a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
 +++ b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
-@@ -620,6 +620,16 @@ public final class CraftMagicNumbers implements UnsafeValues {
+@@ -616,6 +616,16 @@ public final class CraftMagicNumbers implements UnsafeValues {
          net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome> biomeBase = cra.getHandle().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.BIOME).getHolderOrThrow(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.BIOME, org.bukkit.craftbukkit.util.CraftNamespacedKey.toMinecraft(biomeKey)));
          cra.setBiome(x, y, z, biomeBase);
      }
