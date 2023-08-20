@@ -4,20 +4,72 @@ Date: Wed, 8 Dec 2021 16:49:33 -0800
 Subject: [PATCH] BlockProperty API
 
 
-diff --git a/src/main/java/io/papermc/paper/world/data/BlockProperty.java b/src/main/java/io/papermc/paper/world/data/BlockProperty.java
+diff --git a/src/main/java/io/papermc/paper/world/data/AbstractBlockProperty.java b/src/main/java/io/papermc/paper/world/data/AbstractBlockProperty.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..179074fce84dcbd1549e6e71ca0788d53bafffa5
+index 0000000000000000000000000000000000000000..b7f8f5e1c6e554e5ebe3a92cc0c48f9c6e7c0626
 --- /dev/null
-+++ b/src/main/java/io/papermc/paper/world/data/BlockProperty.java
-@@ -0,0 +1,342 @@
++++ b/src/main/java/io/papermc/paper/world/data/AbstractBlockProperty.java
+@@ -0,0 +1,49 @@
 +package io.papermc.paper.world.data;
 +
 +import com.google.common.base.MoreObjects;
-+import com.google.common.collect.ImmutableSetMultimap;
++import java.util.Locale;
++import org.jetbrains.annotations.NotNull;
++
++abstract sealed class AbstractBlockProperty<T extends Comparable<T>> implements BlockProperty<T> permits BooleanBlockProperty, IntegerBlockProperty, EnumBlockProperty, NoteBlockProperty {
++
++    static final ExceptionCreator EXCEPTION_CREATOR = (value, type, property) -> new IllegalArgumentException(String.format("%s (%s) is not a valid %s for %s",value, value.getClass().getSimpleName(), type.name().toLowerCase(Locale.ENGLISH), property));
++
++    private final String name;
++    private final Class<T> type;
++
++    protected AbstractBlockProperty(@NotNull String name, @NotNull Class<T> type) {
++        this.name = name;
++        this.type = type;
++        BlockProperties.PROPERTIES.put(name, this);
++    }
++
++    @Override
++    public final @NotNull String name() {
++        return this.name;
++    }
++
++    @Override
++    public final @NotNull Class<T> type() {
++        return this.type;
++    }
++
++    @Override
++    public String toString() {
++        return MoreObjects.toStringHelper(this)
++            .add("name", this.name)
++            .add("type", this.type)
++            .add("values", this.values())
++            .toString();
++    }
++
++    @FunctionalInterface
++    interface ExceptionCreator {
++
++        @NotNull IllegalArgumentException create(@NotNull Object value, @NotNull Type type, @NotNull BlockProperty<?> property);
++
++        enum Type {
++            NAME,
++            VALUE;
++        }
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/world/data/BlockProperties.java b/src/main/java/io/papermc/paper/world/data/BlockProperties.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b14a37e2ee551f2eda282545f94c8e2ca8e50ff3
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/world/data/BlockProperties.java
+@@ -0,0 +1,174 @@
++package io.papermc.paper.world.data;
++
++import com.google.common.collect.HashMultimap;
 +import com.google.common.collect.Multimap;
 +import java.util.Arrays;
-+import java.util.Locale;
-+import java.util.Optional;
 +import java.util.Set;
 +import java.util.function.Predicate;
 +import java.util.stream.Collectors;
@@ -44,20 +96,15 @@ index 0000000000000000000000000000000000000000..179074fce84dcbd1549e6e71ca0788d5
 +import org.bukkit.block.data.type.StructureBlock;
 +import org.bukkit.block.data.type.TechnicalPiston;
 +import org.bukkit.block.data.type.Wall;
-+import org.jetbrains.annotations.NotNull;
-+import org.jetbrains.annotations.Unmodifiable;
 +
-+@SuppressWarnings("StaticInitializerReferencesSubClass")
-+public abstract sealed class BlockProperty<T extends Comparable<T>> permits BooleanBlockProperty, IntegerBlockProperty, EnumBlockProperty, NoteBlockProperty {
++public final class BlockProperties {
 +
-+    static final ExceptionCreator EXCEPTION_CREATOR = (value, type, property) -> new IllegalArgumentException(String.format("%s (%s) is not a valid %s for %s",value, value.getClass().getSimpleName(), type.name().toLowerCase(Locale.ENGLISH), property));
-+
-+    private static final ImmutableSetMultimap.Builder<String, BlockProperty<?>> PROPERTY_MULTIMAP_BUILDER = ImmutableSetMultimap.builder();
-+    public static final Multimap<String, BlockProperty<?>> PROPERTIES;
++    static final Multimap<String, BlockProperty<?>> PROPERTIES = HashMultimap.create();
 +
 +    public static final BooleanBlockProperty ATTACHED = bool("attached");
 +    public static final BooleanBlockProperty BOTTOM = bool("bottom");
 +    public static final BooleanBlockProperty CONDITIONAL = bool("conditional");
++    public static final BooleanBlockProperty CRACKED = bool("cracked");
 +    public static final BooleanBlockProperty DISARMED = bool("disarmed");
 +    public static final BooleanBlockProperty DRAG = bool("drag");
 +    public static final BooleanBlockProperty ENABLED = bool("enabled");
@@ -84,7 +131,6 @@ index 0000000000000000000000000000000000000000..179074fce84dcbd1549e6e71ca0788d5
 +    public static final BooleanBlockProperty TRIGGERED = bool("triggered");
 +    public static final BooleanBlockProperty UNSTABLE = bool("unstable");
 +    public static final BooleanBlockProperty WATERLOGGED = bool("waterlogged");
-+    public static final BooleanBlockProperty VINE_END = bool("vine_end");
 +    public static final BooleanBlockProperty BERRIES = bool("berries");
 +    public static final BooleanBlockProperty BLOOM = bool("bloom");
 +    public static final BooleanBlockProperty SHRIEKING = bool("shrieking");
@@ -114,7 +160,9 @@ index 0000000000000000000000000000000000000000..179074fce84dcbd1549e6e71ca0788d5
 +    public static final IntegerBlockProperty CANDLES = integer("candles", 1, 4);
 +    public static final IntegerBlockProperty DELAY = integer("delay", 1, 4);
 +    public static final IntegerBlockProperty DISTANCE = integer("distance", 1, 7);
++    public static final IntegerBlockProperty DUSTED = integer("dusted", 0, 3);
 +    public static final IntegerBlockProperty EGGS = integer("eggs", 1, 4);
++    public static final IntegerBlockProperty FLOWER_AMOUNT = integer("flower_amount", 1, 4);
 +    public static final IntegerBlockProperty HATCH = integer("hatch", 0, 2);
 +    public static final IntegerBlockProperty LAYERS = integer("layers", 1, 8);
 +    public static final IntegerBlockProperty LEVEL_CAULDRON = integer("level", 1, 3);
@@ -129,8 +177,8 @@ index 0000000000000000000000000000000000000000..179074fce84dcbd1549e6e71ca0788d5
 +    public static final IntegerBlockProperty STAGE = integer("stage", 0, 1);
 +    public static final IntegerBlockProperty STABILITY_DISTANCE = integer("distance", 0, 7);
 +    public static final IntegerBlockProperty RESPAWN_ANCHOR_CHARGES = integer("charges", 0, 4);
-+    public static final EnumBlockProperty<BlockFace> ROTATION_16 = new RotationBlockProperty("rotation"); // is stored as int, but represented as enum
 +
++    public static final EnumBlockProperty<BlockFace> ROTATION_16 = new RotationBlockProperty("rotation"); // is stored as int, but represented as enum
 +    public static final EnumBlockProperty<Axis> HORIZONTAL_AXIS = enumeration("axis", Axis.class, Axis.X, Axis.Z);
 +    public static final EnumBlockProperty<Axis> AXIS = enumeration("axis", Axis.class);
 +    public static final EnumBlockProperty<BlockFace> FACING = enumeration("facing", BlockFace.class, BlockFace::isCartesian);
@@ -166,157 +214,7 @@ index 0000000000000000000000000000000000000000..179074fce84dcbd1549e6e71ca0788d5
 +    public static final EnumBlockProperty<PointedDripstone.Thickness> DRIPSTONE_THICKNESS = enumeration("thickness", PointedDripstone.Thickness.class);
 +    public static final EnumBlockProperty<SculkSensor.Phase> SCULK_SENSOR_PHASE = enumeration("sculk_sensor_phase", SculkSensor.Phase.class);
 +
-+    // Must go after creation of all properties
-+    static {
-+        PROPERTIES = PROPERTY_MULTIMAP_BUILDER.build();
-+    }
-+
-+    private final String name;
-+    private final Class<T> type;
-+
-+    protected BlockProperty(@NotNull String name, @NotNull Class<T> type) {
-+        this.name = name;
-+        this.type = type;
-+        PROPERTY_MULTIMAP_BUILDER.put(name, this);
-+    }
-+
-+    /**
-+     * Gets the name of this property.
-+     *
-+     * @return the name
-+     */
-+    public @NotNull String name() {
-+        return name;
-+    }
-+
-+    /**
-+     * Gets the value type of this property.
-+     *
-+     * @return the value type
-+     */
-+    public @NotNull Class<T> type() {
-+        return type;
-+    }
-+
-+    /**
-+     * Gets the string name for a value of this property.
-+     *
-+     * @param value the value to get the string name of
-+     * @return the string name of the value
-+     * @throws IllegalArgumentException if the value is not valid for
-+     * @see #value(String)
-+     */
-+    public abstract @NotNull String name(@NotNull T value);
-+
-+    /**
-+     * Checks if the name is a valid name
-+     * for a value of this property.
-+     *
-+     * @param name the name to check
-+     * @return true if valid
-+     * @see #value(String)
-+     */
-+    public abstract boolean isValidName(@NotNull String name);
-+
-+    /**
-+     * Gets the value of this property from the string name.
-+     * Throws an exception if no value is found with that name.
-+     *
-+     * @param name the name of the value
-+     * @return the property with the specified name
-+     * @see #isValidName(String)
-+     */
-+    public abstract @NotNull T value(@NotNull String name);
-+
-+    /**
-+     * Checks if the object is a valid value for this property.
-+     *
-+     * @param object the object to check
-+     * @return true if its a valid value
-+     * @see #setValue(BlockPropertyHolder, Object)
-+     */
-+    public abstract boolean isValue(@NotNull Object object);
-+
-+    /**
-+     * Gets an immutable collection of possible values for this property.
-+     *
-+     * @return an immutable collection of values
-+     */
-+    public abstract @Unmodifiable @NotNull Set<@NotNull T> values();
-+
-+    /**
-+     * Checks if a {@link BlockPropertyHolder} has this property.
-+     *
-+     * @param holder the holder of a set of properties (like {@link org.bukkit.block.data.BlockData})
-+     * @return true if this property is present
-+     * @see BlockPropertyHolder#hasProperty(BlockProperty)
-+     */
-+    public boolean hasValueOn(@NotNull BlockPropertyHolder holder) {
-+        return holder.hasProperty(this);
-+    }
-+
-+    /**
-+     * Gets the value from a {@link BlockPropertyHolder} for this property.
-+     *
-+     * @param holder the holder of a set of properties (like {@link org.bukkit.block.data.BlockData})
-+     * @return the non-null value
-+     * @throws IllegalArgumentException if this property is not present
-+     * @see #hasValueOn(BlockPropertyHolder)
-+     * @see BlockPropertyHolder#getValue(BlockProperty)
-+     */
-+    public @NotNull T getValue(@NotNull BlockPropertyHolder holder) {
-+        return holder.getValue(this);
-+    }
-+
-+    /**
-+     * Gets the optional of the value for this property.
-+     *
-+     * @param holder the holder of a set of properties (like {@link org.bukkit.block.data.BlockData})
-+     * @return the optional of the value, will be empty if the property is not present
-+     * @see #getValue(BlockPropertyHolder)
-+     * @see BlockPropertyHolder#getOptionalValue(BlockProperty)
-+     */
-+    public @NotNull Optional<T> getOptionalValue(@NotNull BlockPropertyHolder holder) {
-+        return holder.getOptionalValue(this);
-+    }
-+
-+    /**
-+     * Sets the value on a {@link BlockPropertyHolder} for this property.
-+     *
-+     * @param holder the mutable holder of a set of properties (like {@link org.bukkit.block.data.BlockData})
-+     * @param value the value for this property
-+     * @throws IllegalArgumentException if this property is not present
-+     * @see #hasValueOn(BlockPropertyHolder)
-+     * @see BlockPropertyHolder#hasProperty(BlockProperty)
-+     */
-+    public void setValue(@NotNull BlockPropertyHolder.Mutable holder, @NotNull T value) {
-+        holder.setValue(this, value);
-+    }
-+
-+    /**
-+     * Sets the value on a {@link BlockPropertyHolder} for this property.
-+     *
-+     * @param holder the mutable holder of a set of properties (like {@link org.bukkit.block.data.BlockData})
-+     * @param value the value for this property
-+     * @throws IllegalArgumentException if this property is not present
-+     * @see #hasValueOn(BlockPropertyHolder)
-+     * @see BlockPropertyHolder#hasProperty(BlockProperty)
-+     */
-+    @SuppressWarnings("unchecked")
-+    public void setValue(@NotNull BlockPropertyHolder holder, @NotNull Object value) {
-+        if (!this.isValue(value)) {
-+            throw EXCEPTION_CREATOR.create(value, ExceptionCreator.Type.VALUE, this);
-+        }
-+        this.setValue(holder, (T) value);
-+    }
-+
-+    @Override
-+    public String toString() {
-+        return MoreObjects.toStringHelper(this)
-+            .add("name", this.name)
-+            .add("type", this.type)
-+            .add("values", this.values())
-+            .toString();
++    private BlockProperties() {
 +    }
 +
 +    private static IntegerBlockProperty integer(String name, int min, int max) {
@@ -340,30 +238,162 @@ index 0000000000000000000000000000000000000000..179074fce84dcbd1549e6e71ca0788d5
 +    private static <E extends Enum<E>> EnumBlockProperty<E> enumeration(String name, Class<E> enumClass, Predicate<E> test) {
 +        return new EnumBlockProperty<>(name, enumClass, Arrays.stream(enumClass.getEnumConstants()).filter(test).collect(Collectors.toSet()));
 +    }
++}
+diff --git a/src/main/java/io/papermc/paper/world/data/BlockProperty.java b/src/main/java/io/papermc/paper/world/data/BlockProperty.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f1fccc48d8e7aab92e20f876ce2dc6ce9e61f0a7
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/world/data/BlockProperty.java
+@@ -0,0 +1,136 @@
++package io.papermc.paper.world.data;
 +
-+    @FunctionalInterface
-+    interface ExceptionCreator {
++import java.util.Optional;
++import java.util.Set;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Unmodifiable;
 +
-+        @NotNull IllegalArgumentException create(@NotNull Object value, @NotNull Type type, @NotNull BlockProperty<?> property);
++public sealed interface BlockProperty<T extends Comparable<T>> permits AbstractBlockProperty {
 +
-+        enum Type {
-+            NAME,
-+            VALUE;
-+        }
++    /**
++     * Gets the name of this property.
++     *
++     * @return the name
++     */
++    @NotNull String name();
++
++    /**
++     * Gets the value type of this property.
++     *
++     * @return the value type
++     */
++    @NotNull Class<T> type();
++
++    /**
++     * Gets the string name for a value of this property.
++     *
++     * @param value the value to get the string name of
++     * @return the string name of the value
++     * @throws IllegalArgumentException if the value is not valid for
++     * @see #value(String)
++     */
++    @NotNull String name(@NotNull T value);
++
++    /**
++     * Checks if the name is a valid name
++     * for a value of this property.
++     *
++     * @param name the name to check
++     * @return true if valid
++     * @see #value(String)
++     */
++    boolean isValidName(@NotNull String name);
++
++    /**
++     * Gets the value of this property from the string name.
++     * Throws an exception if no value is found with that name.
++     *
++     * @param name the name of the value
++     * @return the property with the specified name
++     * @see #isValidName(String)
++     */
++    @NotNull T value(@NotNull String name);
++
++    /**
++     * Checks if the object is a valid value for this property.
++     *
++     * @param object the object to check
++     * @return true if its a valid value
++     * @see #setValue(BlockPropertyHolder.Mutable, Object)
++     */
++    boolean isValue(@NotNull Object object);
++
++    /**
++     * Gets an immutable collection of possible values for this property.
++     *
++     * @return an immutable collection of values
++     */
++    @Unmodifiable @NotNull Set<@NotNull T> values();
++
++    /**
++     * Checks if a {@link BlockPropertyHolder} has this property.
++     *
++     * @param holder the holder of a set of properties (like {@link org.bukkit.block.data.BlockData})
++     * @return true if this property is present
++     * @see BlockPropertyHolder#hasProperty(BlockProperty)
++     */
++    default boolean hasValueOn(@NotNull BlockPropertyHolder holder) {
++        return holder.hasProperty(this);
 +    }
++
++    /**
++     * Gets the value from a {@link BlockPropertyHolder} for this property.
++     *
++     * @param holder the holder of a set of properties (like {@link org.bukkit.block.data.BlockData})
++     * @return the non-null value
++     * @throws IllegalArgumentException if this property is not present
++     * @see #hasValueOn(BlockPropertyHolder)
++     * @see BlockPropertyHolder#getValue(BlockProperty)
++     */
++    default @NotNull T getValue(@NotNull BlockPropertyHolder holder) {
++        return holder.getValue(this);
++    }
++
++    /**
++     * Gets the optional of the value for this property.
++     *
++     * @param holder the holder of a set of properties (like {@link org.bukkit.block.data.BlockData})
++     * @return the optional of the value, will be empty if the property is not present
++     * @see #getValue(BlockPropertyHolder)
++     * @see BlockPropertyHolder#getOptionalValue(BlockProperty)
++     */
++    default @NotNull Optional<T> getOptionalValue(@NotNull BlockPropertyHolder holder) {
++        return holder.getOptionalValue(this);
++    }
++
++    /**
++     * Sets the value on a {@link BlockPropertyHolder} for this property.
++     *
++     * @param holder the mutable holder of a set of properties (like {@link org.bukkit.block.data.BlockData})
++     * @param value the value for this property
++     * @throws IllegalArgumentException if this property is not present
++     * @see #hasValueOn(BlockPropertyHolder)
++     * @see BlockPropertyHolder#hasProperty(BlockProperty)
++     */
++    default void setValue(@NotNull BlockPropertyHolder.Mutable holder, @NotNull T value) {
++        holder.setValue(this, value);
++    }
++
++    /**
++     * Sets the value on a {@link BlockPropertyHolder} for this property.
++     *
++     * @param holder the mutable holder of a set of properties (like {@link org.bukkit.block.data.BlockData})
++     * @param value the value for this property
++     * @throws IllegalArgumentException if this property is not present
++     * @see #hasValueOn(BlockPropertyHolder)
++     * @see BlockPropertyHolder#hasProperty(BlockProperty)
++     */
++    @SuppressWarnings("unchecked")
++    default void setValue(@NotNull BlockPropertyHolder.Mutable holder, @NotNull Object value) {
++        if (!this.isValue(value)) {
++            throw AbstractBlockProperty.EXCEPTION_CREATOR.create(value, AbstractBlockProperty.ExceptionCreator.Type.VALUE, this);
++        }
++        this.setValue(holder, (T) value);
++    }
++
 +}
 diff --git a/src/main/java/io/papermc/paper/world/data/BlockPropertyHolder.java b/src/main/java/io/papermc/paper/world/data/BlockPropertyHolder.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..bad2cbc33efbf6a9135be224f336f3fd3c0f2803
+index 0000000000000000000000000000000000000000..f7a0137a659edba1ec6e0bd794d7c197bc0b297f
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/world/data/BlockPropertyHolder.java
-@@ -0,0 +1,93 @@
+@@ -0,0 +1,94 @@
 +package io.papermc.paper.world.data;
 +
 +import java.util.Collection;
 +import java.util.Optional;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
++import org.jetbrains.annotations.Unmodifiable;
 +
 +/**
 + * Represents an object that holds {@link BlockProperty}s.
@@ -417,7 +447,7 @@ index 0000000000000000000000000000000000000000..bad2cbc33efbf6a9135be224f336f3fd
 +     *
 +     * @return an unmodifiable collection of properties
 +     */
-+    @NotNull Collection<BlockProperty<?>> getProperties();
++    @NotNull @Unmodifiable Collection<BlockProperty<?>> getProperties();
 +
 +    /**
 +     * Represents an object that holds {@link BlockProperty}s that can be changed.
@@ -453,7 +483,7 @@ index 0000000000000000000000000000000000000000..bad2cbc33efbf6a9135be224f336f3fd
 +}
 diff --git a/src/main/java/io/papermc/paper/world/data/BooleanBlockProperty.java b/src/main/java/io/papermc/paper/world/data/BooleanBlockProperty.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..575354a0ba17a21560930b69f97e0ce4027fb8ab
+index 0000000000000000000000000000000000000000..024dc68c95116214cea742ce14600c6939fd425d
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/world/data/BooleanBlockProperty.java
 @@ -0,0 +1,43 @@
@@ -463,7 +493,7 @@ index 0000000000000000000000000000000000000000..575354a0ba17a21560930b69f97e0ce4
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Unmodifiable;
 +
-+public final class BooleanBlockProperty extends BlockProperty<Boolean> {
++public final class BooleanBlockProperty extends AbstractBlockProperty<Boolean> {
 +
 +    private static final BooleanSet VALUES = BooleanSet.of(true, false);
 +
@@ -478,7 +508,7 @@ index 0000000000000000000000000000000000000000..575354a0ba17a21560930b69f97e0ce4
 +
 +    @Override
 +    public boolean isValidName(@NotNull String name) {
-+        return name.equals("true") || name.equals("false");
++        return "true".equals(name) || "false".equals(name);
 +    }
 +
 +    @Override
@@ -502,7 +532,7 @@ index 0000000000000000000000000000000000000000..575354a0ba17a21560930b69f97e0ce4
 +}
 diff --git a/src/main/java/io/papermc/paper/world/data/EnumBlockProperty.java b/src/main/java/io/papermc/paper/world/data/EnumBlockProperty.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d0efdcb91e4452f2283026a25c1c3c266544b184
+index 0000000000000000000000000000000000000000..9ebe1fd2861645ce9c30b4256c9aee1c412118f1
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/world/data/EnumBlockProperty.java
 @@ -0,0 +1,113 @@
@@ -521,7 +551,7 @@ index 0000000000000000000000000000000000000000..d0efdcb91e4452f2283026a25c1c3c26
 +import org.jetbrains.annotations.Nullable;
 +import org.jetbrains.annotations.Unmodifiable;
 +
-+public sealed class EnumBlockProperty<E extends Enum<E>> extends BlockProperty<E> permits EnumBlockProperty.EnumIntRepresented {
++public sealed class EnumBlockProperty<E extends Enum<E>> extends AbstractBlockProperty<E> permits EnumBlockProperty.EnumIntRepresented {
 +
 +    private final Set<E> values;
 +    private @Nullable Index<String, E> byName; // needs lazy init due to static circular dependencies
@@ -581,7 +611,7 @@ index 0000000000000000000000000000000000000000..d0efdcb91e4452f2283026a25c1c3c26
 +     * but represented as an enum
 +     * @param <E> enum type
 +     */
-+    sealed static class EnumIntRepresented<E extends Enum<E>> extends EnumBlockProperty<E> implements IntegerBlockProperty.IntRepresented<E> permits RotationBlockProperty {
++    static sealed class EnumIntRepresented<E extends Enum<E>> extends EnumBlockProperty<E> implements IntegerBlockProperty.IntRepresented<E> permits RotationBlockProperty {
 +
 +        private final BiMap<E, Integer> cache;
 +
@@ -621,7 +651,7 @@ index 0000000000000000000000000000000000000000..d0efdcb91e4452f2283026a25c1c3c26
 +}
 diff --git a/src/main/java/io/papermc/paper/world/data/IntegerBlockProperty.java b/src/main/java/io/papermc/paper/world/data/IntegerBlockProperty.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..291ce16bbd18b203452fd3aaec28fca3e3229932
+index 0000000000000000000000000000000000000000..f05c8b7b031217b09144715046689db0d1abb0dc
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/world/data/IntegerBlockProperty.java
 @@ -0,0 +1,104 @@
@@ -634,7 +664,7 @@ index 0000000000000000000000000000000000000000..291ce16bbd18b203452fd3aaec28fca3
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Unmodifiable;
 +
-+public final class IntegerBlockProperty extends BlockProperty<Integer> {
++public final class IntegerBlockProperty extends AbstractBlockProperty<Integer> {
 +
 +    private final IntSet values;
 +    private final int min;
@@ -683,7 +713,7 @@ index 0000000000000000000000000000000000000000..291ce16bbd18b203452fd3aaec28fca3
 +    @Override
 +    public boolean isValidName(@NotNull String name) {
 +        try {
-+            Integer value = Integer.valueOf(name);
++            int value = Integer.parseInt(name);
 +            if (this.values.contains(value)) {
 +                return true;
 +            }
@@ -731,7 +761,7 @@ index 0000000000000000000000000000000000000000..291ce16bbd18b203452fd3aaec28fca3
 +}
 diff --git a/src/main/java/io/papermc/paper/world/data/NoteBlockProperty.java b/src/main/java/io/papermc/paper/world/data/NoteBlockProperty.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..cc8ea0d92e1985f85b037d4a3f1934a52faeb15c
+index 0000000000000000000000000000000000000000..afc96e29888035ee8c47e4b50dad024993145052
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/world/data/NoteBlockProperty.java
 @@ -0,0 +1,72 @@
@@ -745,7 +775,7 @@ index 0000000000000000000000000000000000000000..cc8ea0d92e1985f85b037d4a3f1934a5
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Unmodifiable;
 +
-+final class NoteBlockProperty extends BlockProperty<Note> implements IntegerBlockProperty.IntRepresented<Note> {
++final class NoteBlockProperty extends AbstractBlockProperty<Note> implements IntegerBlockProperty.IntRepresented<Note> {
 +
 +    private final BiMap<Integer, Note> cache;
 +
@@ -886,14 +916,15 @@ index fc3da7ce6f7948aeab0962d9472e8f3a126834cf..7b772d0842885b914860a6cf54aed090
      /**
       * An enum holding tones.
 diff --git a/src/main/java/org/bukkit/UnsafeValues.java b/src/main/java/org/bukkit/UnsafeValues.java
-index b92255a9c87620f46adb140689b1cd328a476d61..113d16f995ad762db99b3d1d90eefe899c08814d 100644
+index de36dab37d3af249cf51573d163731c12346066a..407df5562b164801cf43cc8501be5256a03856e5 100644
 --- a/src/main/java/org/bukkit/UnsafeValues.java
 +++ b/src/main/java/org/bukkit/UnsafeValues.java
-@@ -244,5 +244,15 @@ public interface UnsafeValues {
-      * @throws IllegalStateException if no biome by the given key is registered.
-      */
-     void setBiomeKey(RegionAccessor accessor, int x, int y, int z, NamespacedKey biomeKey);
+@@ -252,4 +252,16 @@ public interface UnsafeValues {
+ 
+     String getStatisticCriteriaKey(@NotNull org.bukkit.Statistic statistic);
+     // Paper end
 +
++    // Paper start - block property API
 +    /**
 +     * Gets the string representation for this bukkit enum.
 +     *
@@ -903,7 +934,7 @@ index b92255a9c87620f46adb140689b1cd328a476d61..113d16f995ad762db99b3d1d90eefe89
 +     * @return the string representation of the supplied enum
 +     */
 +    <B extends Enum<B>> @org.jetbrains.annotations.NotNull String getPropertyEnumName(@org.jetbrains.annotations.NotNull io.papermc.paper.world.data.EnumBlockProperty<B> enumProperty, @org.jetbrains.annotations.NotNull B bukkitEnum);
-     // Paper end
++    // Paper end
  }
 diff --git a/src/main/java/org/bukkit/block/BlockFace.java b/src/main/java/org/bukkit/block/BlockFace.java
 index fe83ed9bf6b6288991b044bb992bd8b2f00edc24..d476385fcb0a1c62d85cb69398b01998d5734644 100644
@@ -926,10 +957,10 @@ index fe83ed9bf6b6288991b044bb992bd8b2f00edc24..d476385fcb0a1c62d85cb69398b01998
      public BlockFace getOppositeFace() {
          switch (this) {
 diff --git a/src/main/java/org/bukkit/block/data/BlockData.java b/src/main/java/org/bukkit/block/data/BlockData.java
-index dcfd515af841cbb957a9a651b6350c88840c041e..7ac2970c7581b90f090d4e89f938a964197b3bd9 100644
+index c6b17605090f2f284e6536567ddf0e0977eeaaf8..6e0a957cf1f5467712eddd20cba4c77885e8b8e9 100644
 --- a/src/main/java/org/bukkit/block/data/BlockData.java
 +++ b/src/main/java/org/bukkit/block/data/BlockData.java
-@@ -12,7 +12,7 @@ import org.bukkit.inventory.ItemStack;
+@@ -16,7 +16,7 @@ import org.jetbrains.annotations.ApiStatus;
  import org.jetbrains.annotations.NotNull;
  import org.jetbrains.annotations.Nullable;
  

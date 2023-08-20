@@ -17,19 +17,6 @@ index e99ce87fcd3a2f5edaef7b8996fb875ae61a88c1..1ffdd966af6585d5d9f5cead5c72f54b
      @Nullable
      private Component displayName;
  
-diff --git a/src/main/java/net/minecraft/world/entity/projectile/Arrow.java b/src/main/java/net/minecraft/world/entity/projectile/Arrow.java
-index 1a9fb3383f8df2238dd193d0f3930d110e822807..ea7f20932ff93b025b1b6cb388ca8d304f6ff876 100644
---- a/src/main/java/net/minecraft/world/entity/projectile/Arrow.java
-+++ b/src/main/java/net/minecraft/world/entity/projectile/Arrow.java
-@@ -28,7 +28,7 @@ public class Arrow extends AbstractArrow {
-     private static final int NO_EFFECT_COLOR = -1;
-     private static final EntityDataAccessor<Integer> ID_EFFECT_COLOR = SynchedEntityData.defineId(Arrow.class, EntityDataSerializers.INT);
-     private static final byte EVENT_POTION_PUFF = 0;
--    private Potion potion;
-+    public Potion potion; // MachinedPaper
-     public final Set<MobEffectInstance> effects;
-     private boolean fixedColor;
- 
 diff --git a/src/main/java/net/minecraft/world/item/alchemy/PotionBrewing.java b/src/main/java/net/minecraft/world/item/alchemy/PotionBrewing.java
 index 12d9556a11ac4ef2e7a62fcd2686d868904bc010..cd14e2202738ee11eb636d49965c3431bd2f1137 100644
 --- a/src/main/java/net/minecraft/world/item/alchemy/PotionBrewing.java

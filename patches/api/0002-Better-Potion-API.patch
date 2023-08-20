@@ -141,13 +141,13 @@ index 0000000000000000000000000000000000000000..465a52352136b875ced5d330174edf87
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/Registry.java b/src/main/java/org/bukkit/Registry.java
-index f5456e098c77df43624c609bd11d9904e93deab0..89c505b6865ab6acb5582b7881a16a6bd313ebd0 100644
+index 16df3ef470ec2e54fdb04b782bce45a5d1e0cb0b..ae8e1cf7e2f9222fda2a3df9941592af0741c746 100644
 --- a/src/main/java/org/bukkit/Registry.java
 +++ b/src/main/java/org/bukkit/Registry.java
-@@ -278,6 +278,13 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
-             return io.papermc.paper.statistic.StatisticType.values().iterator();
-         }
-     };
+@@ -272,6 +272,13 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
+      */
+     @SuppressWarnings({"unchecked", "rawtypes"})
+     Registry<io.papermc.paper.statistic.StatisticType<?>> STATISTIC_TYPE = java.util.Objects.requireNonNull(org.bukkit.Bukkit.getRegistry((Class<io.papermc.paper.statistic.StatisticType<?>>) (Class) io.papermc.paper.statistic.StatisticType.class));
 +
 +    /**
 +     * Potion types.
@@ -159,7 +159,7 @@ index f5456e098c77df43624c609bd11d9904e93deab0..89c505b6865ab6acb5582b7881a16a6b
  
      /**
 diff --git a/src/main/java/org/bukkit/entity/AreaEffectCloud.java b/src/main/java/org/bukkit/entity/AreaEffectCloud.java
-index c2096b5344d48d855d031538ec32e0154bd9054d..c9bd012129146a4f2513d18258b55f6c53d94fd5 100644
+index f3180f6a4910984fc324f4a69eac59e036e32f2b..fabf5819a79d8eec73cbd2da6ed29d2346d1ffb3 100644
 --- a/src/main/java/org/bukkit/entity/AreaEffectCloud.java
 +++ b/src/main/java/org/bukkit/entity/AreaEffectCloud.java
 @@ -149,17 +149,37 @@ public interface AreaEffectCloud extends Entity {
@@ -201,7 +201,7 @@ index c2096b5344d48d855d031538ec32e0154bd9054d..c9bd012129146a4f2513d18258b55f6c
       * Checks for the presence of custom potion effects.
       *
 diff --git a/src/main/java/org/bukkit/entity/Arrow.java b/src/main/java/org/bukkit/entity/Arrow.java
-index 8814519df13c5e9475774f4bce4c8c6a462c2978..ff13cabf704b8e6a528cfbc0e54cb11a47e7fe4e 100644
+index be9a35790fc664721ac94f3708613eb77631a0c5..2e46c5de33e6dd41867836608f0727dbf441341c 100644
 --- a/src/main/java/org/bukkit/entity/Arrow.java
 +++ b/src/main/java/org/bukkit/entity/Arrow.java
 @@ -14,17 +14,37 @@ public interface Arrow extends AbstractArrow {

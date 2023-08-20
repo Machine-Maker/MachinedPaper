@@ -68,10 +68,10 @@ index 0000000000000000000000000000000000000000..ce1b6ae06c411f0e346e3ccf5760ec5a
 +}
 diff --git a/src/main/java/io/papermc/paper/statistic/CustomStatistic.java b/src/main/java/io/papermc/paper/statistic/CustomStatistic.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..00b161255a9c776d1cecb8b308cccae19a7f9fa6
+index 0000000000000000000000000000000000000000..7b9f4295a1a195404aa77101f323d25662d7e600
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/statistic/CustomStatistic.java
-@@ -0,0 +1,153 @@
+@@ -0,0 +1,134 @@
 +package io.papermc.paper.statistic;
 +
 +import net.kyori.adventure.translation.Translatable;
@@ -91,7 +91,7 @@ index 0000000000000000000000000000000000000000..00b161255a9c776d1cecb8b308cccae1
 + */
 +public final class CustomStatistic implements Keyed, Translatable {
 +
-+    private static final Map<NamespacedKey, CustomStatistic> CUSTOM_STATISTIC_MAP = new HashMap<>();
++    static final Map<NamespacedKey, CustomStatistic> CUSTOM_STATISTIC_MAP = new HashMap<>();
 +
 +    public static final CustomStatistic LEAVE_GAME = create("leave_game");
 +    public static final CustomStatistic PLAY_TIME = create("play_time");
@@ -173,25 +173,6 @@ index 0000000000000000000000000000000000000000..00b161255a9c776d1cecb8b308cccae1
 +        return StatisticType.CUSTOM_STATS.registerCustomStatistic(new CustomStatistic(key));
 +    }
 +
-+    /**
-+     * Get a custom stat type from a key
-+     *
-+     * @param key the stats key
-+     * @return the stat or null if none found
-+     */
-+    public static @Nullable CustomStatistic getByKey(@NotNull NamespacedKey key) {
-+        return CUSTOM_STATISTIC_MAP.get(key);
-+    }
-+
-+    /**
-+     * Gets an unmodifiable collection of all custom stat types.
-+     *
-+     * @return a collection of all custom stat types
-+     */
-+    public static @NotNull Collection<CustomStatistic> values() {
-+        return Collections.unmodifiableCollection(CUSTOM_STATISTIC_MAP.values());
-+    }
-+
 +    private final NamespacedKey key;
 +
 +    private CustomStatistic(String key) {
@@ -201,7 +182,7 @@ index 0000000000000000000000000000000000000000..00b161255a9c776d1cecb8b308cccae1
 +
 +    @Override
 +    public @NotNull NamespacedKey getKey() {
-+        return key;
++        return this.key;
 +    }
 +
 +    @Override
@@ -227,10 +208,10 @@ index 0000000000000000000000000000000000000000..00b161255a9c776d1cecb8b308cccae1
 +}
 diff --git a/src/main/java/io/papermc/paper/statistic/Statistic.java b/src/main/java/io/papermc/paper/statistic/Statistic.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..da2d078b0ab2cfc910ef274724ab7130da2a1eba
+index 0000000000000000000000000000000000000000..591e3fef265b4428b266fe7f2b55ab2812cec9d6
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/statistic/Statistic.java
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,55 @@
 +package io.papermc.paper.statistic;
 +
 +import org.bukkit.Keyed;
@@ -259,11 +240,11 @@ index 0000000000000000000000000000000000000000..da2d078b0ab2cfc910ef274724ab7130
 +     * @return the stat
 +     */
 +    public @NotNull S value() {
-+        return value;
++        return this.value;
 +    }
 +
 +    public @NotNull StatisticType<S> type() {
-+        return type;
++        return this.type;
 +    }
 +
 +    @Override
@@ -283,19 +264,15 @@ index 0000000000000000000000000000000000000000..da2d078b0ab2cfc910ef274724ab7130
 +
 +    @Override
 +    public String toString() {
-+        return buildName(this.type, this.value);
-+    }
-+
-+    public static <S extends Keyed> @NotNull String buildName(@NotNull StatisticType<S> type, @NotNull S value) {
-+        return type.getKey().toString().replace(':', '.')  + ':' + value.getKey().toString().replace(':', '.');
++        return this.type.getKey().toString().replace(':', '.')  + ':' + this.value.getKey().toString().replace(':', '.');
 +    }
 +}
 diff --git a/src/main/java/io/papermc/paper/statistic/StatisticType.java b/src/main/java/io/papermc/paper/statistic/StatisticType.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..034e1afde05e565adbcc9d8a3fd7788f5b664392
+index 0000000000000000000000000000000000000000..e90a2f076699d79ff5a5570a0a3f337ccd0f1bac
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/statistic/StatisticType.java
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,119 @@
 +package io.papermc.paper.statistic;
 +
 +import com.google.common.base.Preconditions;
@@ -320,22 +297,7 @@ index 0000000000000000000000000000000000000000..034e1afde05e565adbcc9d8a3fd7788f
 +
 +public final class StatisticType<S extends Keyed> implements Keyed, Translatable {
 +
-+    private static final Map<NamespacedKey, StatisticType<?>> STATISTIC_TYPE_MAP = new HashMap<>();
-+
-+    @ApiStatus.Internal
-+    public static @Nullable StatisticType<?> getStatisticType(@NotNull NamespacedKey key) {
-+        return STATISTIC_TYPE_MAP.get(key);
-+    }
-+
-+    /**
-+     * Gets an unmodifiable collection of statistic types.
-+     *
-+     * @return a collection of statistic types
-+     */
-+    @ApiStatus.Internal
-+    public static @NotNull Collection<StatisticType<?>> values() {
-+        return Collections.unmodifiableCollection(STATISTIC_TYPE_MAP.values());
-+    }
++    static final Map<NamespacedKey, StatisticType<?>> STATISTIC_TYPE_MAP = new HashMap<>();
 +
 +    public static final StatisticType<Material> BLOCK_MINED = forMaterial("mined", Material::isBlock);
 +    public static final StatisticType<Material> ITEM_CRAFTED = forMaterial("crafted", Material::isItem);
@@ -345,7 +307,7 @@ index 0000000000000000000000000000000000000000..034e1afde05e565adbcc9d8a3fd7788f
 +    public static final StatisticType<Material> ITEM_DROPPED = forMaterial("dropped", Material::isItem);
 +    public static final StatisticType<EntityType> ENTITY_KILLED = forEntityType("killed", entityType -> entityType != EntityType.UNKNOWN);
 +    public static final StatisticType<EntityType> ENTITY_KILLED_BY = forEntityType("killed_by", entityType -> entityType != EntityType.UNKNOWN);
-+    public static final StatisticType<CustomStatistic> CUSTOM_STATS = new StatisticType<>("custom", 75, Registry.CUSTOM_STATISTICS);
++    public static final StatisticType<CustomStatistic> CUSTOM_STATS = new StatisticType<>("custom", 75, Registry.CUSTOM_STATISTIC);
 +
 +    private static StatisticType<Material> forMaterial(String key, Predicate<Material> typeCheck) {
 +        return new StatisticType<>(key, Registry.MATERIAL, (int) Arrays.stream(Material.values()).filter(Predicate.not(Material::isLegacy)).filter(typeCheck).count(), typeCheck);
@@ -380,7 +342,7 @@ index 0000000000000000000000000000000000000000..034e1afde05e565adbcc9d8a3fd7788f
 +     * @throws IllegalArgumentException if the thing is not valid for this {@link StatisticType}
 +     */
 +    public @NotNull Statistic<S> of(@NotNull S value) {
-+        if (!typeCheck.test(value)) {
++        if (!this.typeCheck.test(value)) {
 +            throw new IllegalArgumentException(value + " is not valid for " + this.getKey());
 +        }
 +        if (this == StatisticType.CUSTOM_STATS) {
@@ -403,12 +365,12 @@ index 0000000000000000000000000000000000000000..034e1afde05e565adbcc9d8a3fd7788f
 +     * @return the registry
 +     */
 +    public @NotNull Registry<S> registry() {
-+        return registry;
++        return this.registry;
 +    }
 +
 +    @Override
 +    public @NotNull NamespacedKey getKey() {
-+        return key;
++        return this.key;
 +    }
 +
 +    /**
@@ -431,10 +393,10 @@ index 0000000000000000000000000000000000000000..034e1afde05e565adbcc9d8a3fd7788f
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/OfflinePlayer.java b/src/main/java/org/bukkit/OfflinePlayer.java
-index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1525f6616 100644
+index 9b84cb5abdf3db55cbc7ba19c8cd6955bf4fc5ec..541cd8834b2b945d00108bc5facef8c7693c5a8f 100644
 --- a/src/main/java/org/bukkit/OfflinePlayer.java
 +++ b/src/main/java/org/bukkit/OfflinePlayer.java
-@@ -203,6 +203,79 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -254,6 +254,79 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @return last seen time
       */
      public long getLastSeen();
@@ -514,7 +476,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      // Paper end
  
      /**
-@@ -215,7 +288,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -266,7 +339,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if statistic is null
       * @throws IllegalArgumentException if the statistic requires an
       *     additional parameter
@@ -524,7 +486,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public void incrementStatistic(@NotNull Statistic statistic) throws IllegalArgumentException;
  
      /**
-@@ -228,7 +303,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -279,7 +354,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if statistic is null
       * @throws IllegalArgumentException if the statistic requires an
       *     additional parameter
@@ -534,7 +496,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public void decrementStatistic(@NotNull Statistic statistic) throws IllegalArgumentException;
  
      /**
-@@ -240,7 +317,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -291,7 +368,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if amount is negative
       * @throws IllegalArgumentException if the statistic requires an
       *     additional parameter
@@ -544,7 +506,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public void incrementStatistic(@NotNull Statistic statistic, int amount) throws IllegalArgumentException;
  
      /**
-@@ -252,7 +331,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -303,7 +382,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if amount is negative
       * @throws IllegalArgumentException if the statistic requires an
       *     additional parameter
@@ -554,7 +516,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public void decrementStatistic(@NotNull Statistic statistic, int amount) throws IllegalArgumentException;
  
      /**
-@@ -264,7 +345,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -315,7 +396,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if newValue is negative
       * @throws IllegalArgumentException if the statistic requires an
       *     additional parameter
@@ -564,7 +526,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public void setStatistic(@NotNull Statistic statistic, int newValue) throws IllegalArgumentException;
  
      /**
-@@ -275,7 +358,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -326,7 +409,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if statistic is null
       * @throws IllegalArgumentException if the statistic requires an
       *     additional parameter
@@ -574,7 +536,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public int getStatistic(@NotNull Statistic statistic) throws IllegalArgumentException;
  
      /**
-@@ -290,7 +375,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -341,7 +426,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if material is null
       * @throws IllegalArgumentException if the given parameter is not valid
       *     for the statistic
@@ -584,7 +546,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public void incrementStatistic(@NotNull Statistic statistic, @NotNull Material material) throws IllegalArgumentException;
  
      /**
-@@ -305,7 +392,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -356,7 +443,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if material is null
       * @throws IllegalArgumentException if the given parameter is not valid
       *     for the statistic
@@ -594,7 +556,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public void decrementStatistic(@NotNull Statistic statistic, @NotNull Material material) throws IllegalArgumentException;
  
      /**
-@@ -318,7 +407,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -369,7 +458,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if material is null
       * @throws IllegalArgumentException if the given parameter is not valid
       *     for the statistic
@@ -604,7 +566,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public int getStatistic(@NotNull Statistic statistic, @NotNull Material material) throws IllegalArgumentException;
  
      /**
-@@ -332,7 +423,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -383,7 +474,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if amount is negative
       * @throws IllegalArgumentException if the given parameter is not valid
       *     for the statistic
@@ -614,7 +576,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public void incrementStatistic(@NotNull Statistic statistic, @NotNull Material material, int amount) throws IllegalArgumentException;
  
      /**
-@@ -346,7 +439,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -397,7 +490,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if amount is negative
       * @throws IllegalArgumentException if the given parameter is not valid
       *     for the statistic
@@ -624,7 +586,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public void decrementStatistic(@NotNull Statistic statistic, @NotNull Material material, int amount) throws IllegalArgumentException;
  
      /**
-@@ -360,7 +455,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -411,7 +506,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if newValue is negative
       * @throws IllegalArgumentException if the given parameter is not valid
       *     for the statistic
@@ -634,7 +596,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public void setStatistic(@NotNull Statistic statistic, @NotNull Material material, int newValue) throws IllegalArgumentException;
  
      /**
-@@ -375,7 +472,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -426,7 +523,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if entityType is null
       * @throws IllegalArgumentException if the given parameter is not valid
       *     for the statistic
@@ -644,7 +606,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public void incrementStatistic(@NotNull Statistic statistic, @NotNull EntityType entityType) throws IllegalArgumentException;
  
      /**
-@@ -390,7 +489,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -441,7 +540,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if entityType is null
       * @throws IllegalArgumentException if the given parameter is not valid
       *     for the statistic
@@ -654,7 +616,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public void decrementStatistic(@NotNull Statistic statistic, @NotNull EntityType entityType) throws IllegalArgumentException;
  
      /**
-@@ -403,7 +504,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -454,7 +555,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if entityType is null
       * @throws IllegalArgumentException if the given parameter is not valid
       *     for the statistic
@@ -664,7 +626,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public int getStatistic(@NotNull Statistic statistic, @NotNull EntityType entityType) throws IllegalArgumentException;
  
      /**
-@@ -417,7 +520,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -468,7 +571,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if amount is negative
       * @throws IllegalArgumentException if the given parameter is not valid
       *     for the statistic
@@ -674,7 +636,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public void incrementStatistic(@NotNull Statistic statistic, @NotNull EntityType entityType, int amount) throws IllegalArgumentException;
  
      /**
-@@ -431,7 +536,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -482,7 +587,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if amount is negative
       * @throws IllegalArgumentException if the given parameter is not valid
       *     for the statistic
@@ -684,7 +646,7 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
      public void decrementStatistic(@NotNull Statistic statistic, @NotNull EntityType entityType, int amount);
  
      /**
-@@ -445,7 +552,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+@@ -496,7 +603,9 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
       * @throws IllegalArgumentException if newValue is negative
       * @throws IllegalArgumentException if the given parameter is not valid
       *     for the statistic
@@ -695,20 +657,20 @@ index 69b50eee42e8c52063033705bd23a5ef5231ed83..289f3e91dc9a6f030c7a8728218972f1
  
      /**
 diff --git a/src/main/java/org/bukkit/Registry.java b/src/main/java/org/bukkit/Registry.java
-index 0a3a41ae4c488b148266129d3663be3f8830d509..f5456e098c77df43624c609bd11d9904e93deab0 100644
+index 1d96ed754be09b52a518967c870eba05bb3e99ee..16df3ef470ec2e54fdb04b782bce45a5d1e0cb0b 100644
 --- a/src/main/java/org/bukkit/Registry.java
 +++ b/src/main/java/org/bukkit/Registry.java
-@@ -129,7 +129,9 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
+@@ -132,7 +132,9 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
       * Server statistics.
       *
       * @see Statistic
-+     * @deprecated use {@link #CUSTOM_STATISTICS} and {@link #STATISTIC_TYPES}
++     * @deprecated use {@link #CUSTOM_STATISTIC} and {@link #STATISTIC_TYPE}
       */
 +    @Deprecated(forRemoval = true) // Paper
      Registry<Statistic> STATISTIC = new SimpleRegistry<>(Statistic.class);
      /**
       * Server structures.
-@@ -239,6 +241,43 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
+@@ -256,6 +258,20 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
              return Arrays.stream(org.bukkit.potion.PotionEffectType.values()).iterator();
          }
      };
@@ -717,43 +679,20 @@ index 0a3a41ae4c488b148266129d3663be3f8830d509..f5456e098c77df43624c609bd11d9904
 +     *
 +     * @see io.papermc.paper.statistic.CustomStatistic
 +     */
-+    Registry<io.papermc.paper.statistic.CustomStatistic> CUSTOM_STATISTICS = new Registry<io.papermc.paper.statistic.CustomStatistic>() {
-+        @Nullable
-+        @Override
-+        public io.papermc.paper.statistic.CustomStatistic get(@NotNull NamespacedKey key) {
-+            return io.papermc.paper.statistic.CustomStatistic.getByKey(key);
-+        }
-+
-+        @NotNull
-+        @Override
-+        public Iterator<io.papermc.paper.statistic.CustomStatistic> iterator() {
-+            return io.papermc.paper.statistic.CustomStatistic.values().iterator();
-+        }
-+    };
++    Registry<io.papermc.paper.statistic.CustomStatistic> CUSTOM_STATISTIC = java.util.Objects.requireNonNull(org.bukkit.Bukkit.getRegistry(io.papermc.paper.statistic.CustomStatistic.class));
 +
 +    /**
 +     * Statistic types
 +     *
 +     * @see io.papermc.paper.statistic.StatisticType
 +     */
-+    Registry<io.papermc.paper.statistic.StatisticType<?>> STATISTIC_TYPES = new Registry<io.papermc.paper.statistic.StatisticType<?>>() {
-+        @Nullable
-+        @Override
-+        public io.papermc.paper.statistic.StatisticType<?> get(@NotNull NamespacedKey key) {
-+            return io.papermc.paper.statistic.StatisticType.getStatisticType(key);
-+        }
-+
-+        @NotNull
-+        @Override
-+        public Iterator<io.papermc.paper.statistic.StatisticType<?>> iterator() {
-+            return io.papermc.paper.statistic.StatisticType.values().iterator();
-+        }
-+    };
++    @SuppressWarnings({"unchecked", "rawtypes"})
++    Registry<io.papermc.paper.statistic.StatisticType<?>> STATISTIC_TYPE = java.util.Objects.requireNonNull(org.bukkit.Bukkit.getRegistry((Class<io.papermc.paper.statistic.StatisticType<?>>) (Class) io.papermc.paper.statistic.StatisticType.class));
      // Paper end
  
      /**
 diff --git a/src/main/java/org/bukkit/Statistic.java b/src/main/java/org/bukkit/Statistic.java
-index 4ce888688d04eb0c4b2261a6474df870e7d2bb00..34ba8d9f30054422f3f3eb66e8e2ad26abbb1f5b 100644
+index 4ce888688d04eb0c4b2261a6474df870e7d2bb00..84e2303090640b590c88da492214d2188fef2b73 100644
 --- a/src/main/java/org/bukkit/Statistic.java
 +++ b/src/main/java/org/bukkit/Statistic.java
 @@ -5,7 +5,9 @@ import org.jetbrains.annotations.NotNull;
@@ -821,7 +760,7 @@ index 4ce888688d04eb0c4b2261a6474df870e7d2bb00..34ba8d9f30054422f3f3eb66e8e2ad26
 +                if (this == PLAY_ONE_MINUTE) { // special case cause upstream is wrong
 +                    yield io.papermc.paper.statistic.CustomStatistic.PLAY_TIME.statistic();
 +                } else {
-+                    yield java.util.Objects.requireNonNull(Registry.CUSTOM_STATISTICS.get(this.key), "Couldn't convert " + this + " to a modern stat").statistic();
++                    yield java.util.Objects.requireNonNull(Registry.CUSTOM_STATISTIC.get(this.key), "Couldn't convert " + this + " to a modern stat").statistic();
 +                }
 +            }
 +            case BLOCK -> io.papermc.paper.statistic.StatisticType.BLOCK_MINED.of(material);
@@ -950,7 +889,7 @@ index f971844bf490c7a7bfbe305d33df739ed2197a37..ef36f8f1fe2b793870c6ca82eaf48612
          return material;
      }
 diff --git a/src/main/java/org/bukkit/scoreboard/Criteria.java b/src/main/java/org/bukkit/scoreboard/Criteria.java
-index fd1ec403cb9022b5f0790498b30768ad73fa9265..7d1fcd4aad8cfb27c67bee33e37dd657565f7fc6 100644
+index 3bc3abaf093d13e22b6ac2ee59ab584c92b4666a..56cf36b696062490de2adb68c796c5bb74732b0c 100644
 --- a/src/main/java/org/bukkit/scoreboard/Criteria.java
 +++ b/src/main/java/org/bukkit/scoreboard/Criteria.java
 @@ -12,8 +12,8 @@ import org.jetbrains.annotations.NotNull;
@@ -964,7 +903,7 @@ index fd1ec403cb9022b5f0790498b30768ad73fa9265..7d1fcd4aad8cfb27c67bee33e37dd657
   */
  public interface Criteria {
  
-@@ -243,8 +243,10 @@ public interface Criteria {
+@@ -241,8 +241,10 @@ public interface Criteria {
       * {@link Material#isBlock()} is false
       * @throws IllegalArgumentException if {@link Statistic#getType()} is {@link Type#ITEM}, but
       * {@link Material#isItem()} is false
@@ -975,9 +914,9 @@ index fd1ec403cb9022b5f0790498b30768ad73fa9265..7d1fcd4aad8cfb27c67bee33e37dd657
      public static Criteria statistic(@NotNull Statistic statistic, @NotNull Material material) {
          Preconditions.checkArgument(statistic != null, "statistic must not be null");
          Preconditions.checkArgument(material != null, "material must not be null");
-@@ -302,8 +304,10 @@ public interface Criteria {
+@@ -298,8 +300,10 @@ public interface Criteria {
+      * @param entityType the relevant entity type
       * @return the criteria
-      *
       * @throws IllegalArgumentException if {@link Statistic#getType()} is not {@link Type#ENTITY}
 +     * @deprecated use {@link io.papermc.paper.statistic.Statistic}
       */
@@ -986,9 +925,9 @@ index fd1ec403cb9022b5f0790498b30768ad73fa9265..7d1fcd4aad8cfb27c67bee33e37dd657
      public static Criteria statistic(@NotNull Statistic statistic, @NotNull EntityType entityType) {
          Preconditions.checkArgument(statistic != null, "statistic must not be null");
          Preconditions.checkArgument(entityType != null, "entityType must not be null");
-@@ -336,8 +340,10 @@ public interface Criteria {
-      * @param statistic the statistic for which to get a criteria
+@@ -331,8 +335,10 @@ public interface Criteria {
       *
+      * @param statistic the statistic for which to get a criteria
       * @return the criteria
 +     * @deprecated Use {@link io.papermc.paper.statistic.Statistic}
       */
@@ -996,4 +935,4 @@ index fd1ec403cb9022b5f0790498b30768ad73fa9265..7d1fcd4aad8cfb27c67bee33e37dd657
 +    @Deprecated(forRemoval = true) // Paper
      public static Criteria statistic(@NotNull Statistic statistic) {
          Preconditions.checkArgument(statistic != null, "statistic must not be null");
-         return Bukkit.getScoreboardCriteria("minecraft.custom:minecraft." + statistic.getKey().getKey());
+         return Bukkit.getScoreboardCriteria(org.bukkit.Bukkit.getUnsafe().getStatisticCriteriaKey(statistic)); // Paper

@@ -183,41 +183,24 @@ index 0000000000000000000000000000000000000000..e55ea1f83b2ba520e27a175a89f57e88
 +        UPGRADEABLES = upgradeables.build();
 +    }
 +}
-diff --git a/src/main/java/net/minecraft/world/entity/projectile/Arrow.java b/src/main/java/net/minecraft/world/entity/projectile/Arrow.java
-index 2b1228f10461f290b791e937c1c5af0d6011c998..7cc651fb0447eace98280a74d51e4222443f9c95 100644
---- a/src/main/java/net/minecraft/world/entity/projectile/Arrow.java
-+++ b/src/main/java/net/minecraft/world/entity/projectile/Arrow.java
-@@ -153,6 +153,12 @@ public class Arrow extends AbstractArrow {
- 
-     public void setPotionType(String string) {
-         this.potion = BuiltInRegistries.POTION.get(new net.minecraft.resources.ResourceLocation(string));
-+        // Paper start
-+        this.setPotionType(this.potion);
-+    }
-+    public void setPotionType(Potion potion) {
-+        this.potion = potion;
-+        // Paper end
-         this.getEntityData().set(Arrow.ID_EFFECT_COLOR, PotionUtils.getColor((Collection) PotionUtils.getAllEffects(this.potion, (Collection) this.effects)));
-     }
- 
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java b/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java
-index ef25a0ae25e1f1f7c5bee64b9e60b17eb998ced6..818be05660f4ecfed4d65ca2daa42872e7a86989 100644
+index be6dc2b7a0dfc57853d26c0cd5e4a9a4cf987879..f90e627d0c4e4a8912c6de3038eee42e9a528b93 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java
-@@ -594,7 +594,7 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
+@@ -619,7 +619,7 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
              } else if (AbstractArrow.class.isAssignableFrom(clazz)) {
                  if (TippedArrow.class.isAssignableFrom(clazz)) {
                      entity = net.minecraft.world.entity.EntityType.ARROW.create(world);
--                    ((Arrow) entity).setPotionType(CraftPotionUtil.fromBukkit(new PotionData(PotionType.WATER, false, false)));
-+                    ((Arrow) entity).setPotionType(net.minecraft.world.item.alchemy.Potions.WATER); // Paper
+-                    ((Arrow) entity.getBukkitEntity()).setBasePotionData(new PotionData(PotionType.WATER, false, false));
++                    ((Arrow) entity.getBukkitEntity()).setBasePotion(io.papermc.paper.potion.Potion.WATER.value()); // Paper - improved Potion API
                  } else if (SpectralArrow.class.isAssignableFrom(clazz)) {
                      entity = net.minecraft.world.entity.EntityType.SPECTRAL_ARROW.create(world);
                  } else if (Trident.class.isAssignableFrom(clazz)) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftRegistry.java b/src/main/java/org/bukkit/craftbukkit/CraftRegistry.java
-index 34888b525fd35ac64e6e5e66036ad965a6769959..23810729aff3d0bcda196bd543725a6b9a34192b 100644
+index d6f9ad385dd62c2ed809abfef91cdab3393dfb84..82ec08a7f3958775f966460ecbe14e5847f98f42 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftRegistry.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftRegistry.java
-@@ -32,6 +32,11 @@ public class CraftRegistry<B extends Keyed, M> implements Registry<B> {
+@@ -42,6 +42,11 @@ public class CraftRegistry<B extends Keyed, M> implements Registry<B> {
              return new io.papermc.paper.world.structure.PaperConfiguredStructure.LegacyRegistry(registryHolder.registryOrThrow(Registries.STRUCTURE));
          }
          // Paper end
@@ -227,27 +210,27 @@ index 34888b525fd35ac64e6e5e66036ad965a6769959..23810729aff3d0bcda196bd543725a6b
 +        }
 +        // Paper end
  
-         return null;
-     }
+         // Paper start - better stats API
+         if (bukkitClass == io.papermc.paper.statistic.CustomStatistic.class) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 5e9055fdf411029ea2fed91acd6b981f79156418..1d8c45cfadffeac828c3dde876fe4e0b992c70ed 100644
+index f857f490ffba2f25f7c06c5fb1a1905f0b51fbe2..a804604463ce9bfe08c384a0045fa4b59d4aa733 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-@@ -732,7 +732,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -741,7 +741,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
          net.minecraft.world.entity.projectile.AbstractArrow arrow;
          if (TippedArrow.class.isAssignableFrom(clazz)) {
              arrow = EntityType.ARROW.create(world);
--            ((net.minecraft.world.entity.projectile.Arrow) arrow).setPotionType(CraftPotionUtil.fromBukkit(new PotionData(PotionType.WATER, false, false)));
-+            ((net.minecraft.world.entity.projectile.Arrow) arrow).setPotionType(net.minecraft.world.item.alchemy.Potions.WATER); // Paper
+-            ((Arrow) arrow.getBukkitEntity()).setBasePotionData(new PotionData(PotionType.WATER, false, false));
++            ((Arrow) arrow.getBukkitEntity()).setBasePotion(io.papermc.paper.potion.Potion.WATER.value()); // Paper - improved Potion API
          } else if (SpectralArrow.class.isAssignableFrom(clazz)) {
              arrow = EntityType.SPECTRAL_ARROW.create(world);
          } else if (Trident.class.isAssignableFrom(clazz)) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftAreaEffectCloud.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftAreaEffectCloud.java
-index fec308cbc8fb27036301fe27a1169ac7368f9732..51ed5bda1ca4a2bebf876998c49a931575df90c1 100644
+index 00201cf495355939a4f35306b0e7b130c07e5c02..c6683c74abb86129a17bfe969fb936a5f5756cae 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftAreaEffectCloud.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftAreaEffectCloud.java
-@@ -212,6 +212,18 @@ public class CraftAreaEffectCloud extends CraftEntity implements AreaEffectCloud
-         return CraftPotionUtil.toBukkit(this.getHandle().getPotionType());
+@@ -208,6 +208,18 @@ public class CraftAreaEffectCloud extends CraftEntity implements AreaEffectCloud
+         return CraftPotionUtil.toBukkit((BuiltInRegistries.POTION.getKey(this.getHandle().potion)).toString());
      }
  
 +    // Paper start
@@ -266,30 +249,30 @@ index fec308cbc8fb27036301fe27a1169ac7368f9732..51ed5bda1ca4a2bebf876998c49a9315
      public ProjectileSource getSource() {
          net.minecraft.world.entity.LivingEntity source = this.getHandle().getOwner();
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java
-index aec588b41f19b2147a4e7267bafa417fbcf7abc0..f5ac3406f84a9c6ffdbd032e099558b473400b4c 100644
+index f0ce29d21fe9af803ce4e41b8c037b2ec5d1b124..133b474555dea183ad5e2d222e32c1e9cb36da1e 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java
-@@ -525,7 +525,7 @@ public class CraftLivingEntity extends CraftEntity implements LivingEntity {
+@@ -542,7 +542,7 @@ public class CraftLivingEntity extends CraftEntity implements LivingEntity {
          } else if (AbstractArrow.class.isAssignableFrom(projectile)) {
              if (TippedArrow.class.isAssignableFrom(projectile)) {
-                 launch = new Arrow(world, this.getHandle());
--                ((Arrow) launch).setPotionType(CraftPotionUtil.fromBukkit(new PotionData(PotionType.WATER, false, false)));
-+                ((Arrow) launch).setPotionType(net.minecraft.world.item.alchemy.Potions.WATER); // Paper
+                 launch = new net.minecraft.world.entity.projectile.Arrow(world, this.getHandle());
+-                ((Arrow) launch.getBukkitEntity()).setBasePotionData(new PotionData(PotionType.WATER, false, false));
++                ((Arrow) launch.getBukkitEntity()).setBasePotion(io.papermc.paper.potion.Potion.WATER.value()); // Paper - improved Potion API
              } else if (SpectralArrow.class.isAssignableFrom(projectile)) {
                  launch = new net.minecraft.world.entity.projectile.SpectralArrow(world, this.getHandle());
              } else if (Trident.class.isAssignableFrom(projectile)) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftTippedArrow.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftTippedArrow.java
-index 0068f0b3a5f8d53ff91f16b3fe18a4c8cbefc9d7..d8d9c965d430a4a169181ed5c980487526a29b7c 100644
+index bf1de518b8429a1543fbc863cf72a2b1e23f05d4..f68e878dd9a70e63952899ffd690277cd3409e4c 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftTippedArrow.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftTippedArrow.java
-@@ -113,6 +113,18 @@ public class CraftTippedArrow extends CraftArrow implements Arrow {
-         return CraftPotionUtil.toBukkit(this.getHandle().getPotionType());
+@@ -109,6 +109,18 @@ public class CraftTippedArrow extends CraftArrow implements Arrow {
+         return CraftPotionUtil.toBukkit(BuiltInRegistries.POTION.getKey(this.getHandle().potion).toString());
      }
  
 +    // Paper start
 +    @Override
 +    public void setBasePotion(io.papermc.paper.potion.Potion potion) {
-+        this.getHandle().setPotionType(io.papermc.paper.potion.PaperPotion.toMinecraft(potion));
++        this.getHandle().potion = io.papermc.paper.potion.PaperPotion.toMinecraft(potion);
 +    }
 +
 +    @Override
@@ -302,7 +285,7 @@ index 0068f0b3a5f8d53ff91f16b3fe18a4c8cbefc9d7..d8d9c965d430a4a169181ed5c9804875
      public void setColor(Color color) {
          int colorRGB = (color == null) ? -1 : color.asRGB();
 diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaPotion.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaPotion.java
-index 0d4348ce1c4ec9bb779eaebf8606ea578f17d2cb..e929509d6e6c829bec0571355b0ed27567f5d31b 100644
+index d94ab2607d1ab657a6b37924ce5ebcbbc3984011..2cb27112ec7fd475610cf004eddf1797760ffe0f 100644
 --- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaPotion.java
 +++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaPotion.java
 @@ -45,7 +45,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
@@ -314,7 +297,7 @@ index 0d4348ce1c4ec9bb779eaebf8606ea578f17d2cb..e929509d6e6c829bec0571355b0ed275
      private List<PotionEffect> customEffects;
      private Color color;
  
-@@ -65,7 +65,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
+@@ -64,7 +64,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
      CraftMetaPotion(CompoundTag tag) {
          super(tag);
          if (tag.contains(DEFAULT_POTION.NBT)) {
@@ -323,7 +306,7 @@ index 0d4348ce1c4ec9bb779eaebf8606ea578f17d2cb..e929509d6e6c829bec0571355b0ed275
          }
          if (tag.contains(POTION_COLOR.NBT)) {
              try {
-@@ -99,7 +99,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
+@@ -98,7 +98,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
  
      CraftMetaPotion(Map<String, Object> map) {
          super(map);
@@ -332,7 +315,7 @@ index 0d4348ce1c4ec9bb779eaebf8606ea578f17d2cb..e929509d6e6c829bec0571355b0ed275
  
          Color color = SerializableMeta.getObject(Color.class, map, POTION_COLOR.BUKKIT, true);
          if (color != null) {
-@@ -123,7 +123,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
+@@ -120,7 +120,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
      void applyToItem(CompoundTag tag) {
          super.applyToItem(tag);
  
@@ -341,7 +324,7 @@ index 0d4348ce1c4ec9bb779eaebf8606ea578f17d2cb..e929509d6e6c829bec0571355b0ed275
  
          if (this.hasColor()) {
              tag.putInt(POTION_COLOR.NBT, this.color.asRGB());
-@@ -152,7 +152,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
+@@ -149,7 +149,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
      }
  
      boolean isPotionEmpty() {
@@ -350,10 +333,10 @@ index 0d4348ce1c4ec9bb779eaebf8606ea578f17d2cb..e929509d6e6c829bec0571355b0ed275
      }
  
      @Override
-@@ -173,11 +173,23 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
+@@ -170,11 +170,23 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
      @Override
      public void setBasePotionData(PotionData data) {
-         Validate.notNull(data, "PotionData cannot be null");
+         Preconditions.checkArgument(data != null, "PotionData cannot be null");
 -        this.type = data;
 +        this.type = io.papermc.paper.potion.PaperPotion.fromLegacy(data); // Paper - improved Potion API
      }
@@ -375,7 +358,7 @@ index 0d4348ce1c4ec9bb779eaebf8606ea578f17d2cb..e929509d6e6c829bec0571355b0ed275
          return this.type;
      }
  
-@@ -301,7 +313,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
+@@ -298,7 +310,7 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
      int applyHash() {
          final int original;
          int hash = original = super.applyHash();
@@ -384,7 +367,7 @@ index 0d4348ce1c4ec9bb779eaebf8606ea578f17d2cb..e929509d6e6c829bec0571355b0ed275
              hash = 73 * hash + this.type.hashCode();
          }
          if (this.hasColor()) {
-@@ -336,8 +348,10 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
+@@ -333,8 +345,10 @@ class CraftMetaPotion extends CraftMetaItem implements PotionMeta {
      @Override
      Builder<String, Object> serialize(Builder<String, Object> builder) {
          super.serialize(builder);
@@ -418,15 +401,15 @@ index acb69821a99aa69bce6d127e10976089c85be223..b73f6ce5e59407fd47e5c97c5e5cbff3
          if (type == null) {
              return new PotionData(PotionType.UNCRAFTABLE, false, false);
 diff --git a/src/main/java/org/bukkit/craftbukkit/projectiles/CraftBlockProjectileSource.java b/src/main/java/org/bukkit/craftbukkit/projectiles/CraftBlockProjectileSource.java
-index 2afb7af0a90959edd3b0ead2fe4d9018b5560aa4..d437a7e67a7f6b2bdabd9b966d44880ac28c56a7 100644
+index 1cb5875ae9a55fba589697ec66d3e95c35e0e6a0..a2eeffeb1a83ca3534a757e27d4c30cb48cd72af 100644
 --- a/src/main/java/org/bukkit/craftbukkit/projectiles/CraftBlockProjectileSource.java
 +++ b/src/main/java/org/bukkit/craftbukkit/projectiles/CraftBlockProjectileSource.java
 @@ -93,7 +93,7 @@ public class CraftBlockProjectileSource implements BlockProjectileSource {
          } else if (AbstractArrow.class.isAssignableFrom(projectile)) {
              if (TippedArrow.class.isAssignableFrom(projectile)) {
-                 launch = new Arrow(world, iposition.x(), iposition.y(), iposition.z());
--                ((Arrow) launch).setPotionType(CraftPotionUtil.fromBukkit(new PotionData(PotionType.WATER, false, false)));
-+                ((Arrow) launch).setPotionType(net.minecraft.world.item.alchemy.Potions.WATER); // Paper - improved Potion API
+                 launch = new net.minecraft.world.entity.projectile.Arrow(world, iposition.x(), iposition.y(), iposition.z());
+-                ((Arrow) launch.getBukkitEntity()).setBasePotionData(new PotionData(PotionType.WATER, false, false));
++                ((Arrow) launch.getBukkitEntity()).setBasePotion(io.papermc.paper.potion.Potion.WATER.value()); // Paper - improved Potion API
              } else if (SpectralArrow.class.isAssignableFrom(projectile)) {
                  launch = new net.minecraft.world.entity.projectile.SpectralArrow(world, iposition.x(), iposition.y(), iposition.z());
              } else {
